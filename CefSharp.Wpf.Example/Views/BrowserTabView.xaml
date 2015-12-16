@@ -50,6 +50,8 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
@@ -73,6 +75,24 @@
                                 Maximum="1"
                                 TickFrequency="0.01"
                                 Value="0.95" />
+                        <Label Grid.Row="2"
+                               Grid.Column="0"
+                               Content="Render width:" />
+                        <Slider Grid.Row="2"
+                                Grid.Column="1"
+                                Name="renderSlider"
+                                Minimum="200"
+                                Maximum="1600"
+                                Value="1590" />
+                        <Label Grid.Row="3"
+                               Grid.Column="0"
+                               Content="Client width:" />
+                        <Slider Grid.Row="3"
+                                Grid.Column="1"
+                                Name="clientWidthSlider"
+                                Minimum="200"
+                                Maximum="1600"
+                                Value="1590" />
                     </Grid>
                 </GroupBox>
                 <GroupBox Header="Execute Javascript (asynchronously)">
@@ -167,8 +187,11 @@
                         </VisualBrush>
                     </Rectangle.Fill>
                 </Rectangle>
-
+                <Viewbox Width="{Binding ElementName=renderSlider, Path=Value}">
                 <cefSharp:ChromiumWebBrowser x:Name="browser"
+                                             Width="{Binding ElementName=clientWidthSlider, Path=Value}"
+                                             Height="900"
+                                             RenderOptions.BitmapScalingMode="HighQuality"
                                   Opacity="{Binding ElementName=opacitySlider, Path=Value}"
                                   Address="{Binding Address, Mode=TwoWay}"
                                   Title="{Binding Title, Mode=OneWayToSource}"
@@ -214,6 +237,7 @@
                         </ContextMenu>
                     </FrameworkElement.ContextMenu>
                 </cefSharp:ChromiumWebBrowser>
+                </Viewbox>
             </Grid>
         </DockPanel>
     </Grid>
