@@ -1521,7 +1521,7 @@ namespace CefSharp.Wpf
                 Source = this,
             });
 
-            img.Stretch = Stretch.None;
+            img.Stretch = Stretch.Uniform;
             img.HorizontalAlignment = HorizontalAlignment.Left;
             img.VerticalAlignment = VerticalAlignment.Top;
 
