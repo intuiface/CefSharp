@@ -929,7 +929,7 @@ namespace CefSharp.Wpf
             //Default to using BitmapScalingMode.NearestNeighbor
             RenderOptions.SetBitmapScalingMode(img, (bitmapScalingMode == BitmapScalingMode.Unspecified ? BitmapScalingMode.NearestNeighbor : bitmapScalingMode));
 
-            img.Stretch = Stretch.None;
+            img.Stretch = Stretch.Uniform;
             img.HorizontalAlignment = HorizontalAlignment.Left;
             img.VerticalAlignment = VerticalAlignment.Top;
 
