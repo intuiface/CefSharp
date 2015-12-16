@@ -1625,8 +1625,17 @@ namespace CefSharp.Wpf
         /// <param name="y">The y.</param>
         private void SetPopupSizeAndPositionImpl(int width, int height, int x, int y)
         {
-            popup.Width = width ;
-            popup.Height = height;
+            // Get the actual displayed width
+            var vectorWidth = this.PointToScreen(new Point(ActualWidth, 0)) - this.PointToScreen(new Point());
+
+            double scale = 1.0;
+            if (ActualWidth > 0 && vectorWidth.Length > 0)
+            {
+                scale = vectorWidth.Length / ActualWidth;
+            }
+
+            popup.Width = width * scale;
+            popup.Height = height * scale;
 
             var popupOffset = new Point(x, y);
             var locationFromScreen = PointToScreen(popupOffset);
