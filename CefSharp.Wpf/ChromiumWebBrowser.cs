@@ -1541,13 +1541,18 @@ namespace CefSharp.Wpf
                 Placement = PlacementMode.Absolute,
             };
 
-            newPopup.MouseEnter += PopupMouseEnter;
-            newPopup.MouseLeave += PopupMouseLeave;
+            //newPopup.MouseEnter += PopupMouseEnter;
+            //newPopup.MouseLeave += PopupMouseLeave;
 
             return newPopup;
         }
 
-        /// <summary>
+        public Popup GetPopup()
+        {
+            return popup;
+        }
+
+		/// <summary>
         /// Sources the hook.
         /// </summary>
         /// <param name="hWnd">The hWnd.</param>
