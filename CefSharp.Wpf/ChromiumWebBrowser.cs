@@ -945,10 +945,15 @@ namespace CefSharp.Wpf
                 Placement = PlacementMode.Absolute,
             };
 
-            newPopup.MouseEnter += PopupMouseEnter;
-            newPopup.MouseLeave += PopupMouseLeave;
+            //newPopup.MouseEnter += PopupMouseEnter;
+            //newPopup.MouseLeave += PopupMouseLeave;
 
             return newPopup;
+        }
+
+        public Popup GetPopup()
+        {
+            return popup;
         }
 
         protected virtual IntPtr SourceHook(IntPtr hWnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
