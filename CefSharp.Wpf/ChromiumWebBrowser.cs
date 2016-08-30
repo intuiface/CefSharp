@@ -557,34 +557,35 @@ namespace CefSharp.Wpf
         /// <returns><c>true</c> if XXXX, <c>false</c> otherwise.</returns>
         bool IRenderWebBrowser.StartDragging(IDragData dragData, DragOperationsMask mask, int x, int y)
         {
-            var dataObject = new DataObject();
+            //var dataObject = new DataObject();
 
-            dataObject.SetText(dragData.FragmentText, TextDataFormat.Text);
-            dataObject.SetText(dragData.FragmentText, TextDataFormat.UnicodeText);
-            dataObject.SetText(dragData.FragmentHtml, TextDataFormat.Html);
+            //dataObject.SetText(dragData.FragmentText, TextDataFormat.Text);
+            //dataObject.SetText(dragData.FragmentText, TextDataFormat.UnicodeText);
+            //dataObject.SetText(dragData.FragmentHtml, TextDataFormat.Html);
 
-            // TODO: The following code block *should* handle images, but GetFileContents is
-            // not yet implemented.
-            //if (dragData.IsFile)
+            //// TODO: The following code block *should* handle images, but GetFileContents is
+            //// not yet implemented.
+            ////if (dragData.IsFile)
+            ////{
+            ////    var bmi = new BitmapImage();
+            ////    bmi.BeginInit();
+            ////    bmi.StreamSource = dragData.GetFileContents();
+            ////    bmi.EndInit();
+            ////    dataObject.SetImage(bmi);
+            ////}
+
+            //UiThreadRunAsync(delegate
             //{
-            //    var bmi = new BitmapImage();
-            //    bmi.BeginInit();
-            //    bmi.StreamSource = dragData.GetFileContents();
-            //    bmi.EndInit();
-            //    dataObject.SetImage(bmi);
-            //}
+            //    if(browser != null)
+            //    { 
+            //        var results = DragDrop.DoDragDrop(this, dataObject, GetDragEffects(mask));
+            //        browser.GetHost().DragSourceEndedAt(0, 0, GetDragOperationsMask(results));
+            //        browser.GetHost().DragSourceSystemDragEnded();
+            //    }
+            //});
 
-            UiThreadRunAsync(delegate
-            {
-                if(browser != null)
-                { 
-                    var results = DragDrop.DoDragDrop(this, dataObject, GetDragEffects(mask));
-                    browser.GetHost().DragSourceEndedAt(0, 0, GetDragOperationsMask(results));
-                    browser.GetHost().DragSourceSystemDragEnded();
-                }
-            });
-
-            return true;
+            //return true;
+            return false;
         }
 
         /// <summary>
