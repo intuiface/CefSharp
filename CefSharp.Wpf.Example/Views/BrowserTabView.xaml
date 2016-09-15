@@ -207,7 +207,6 @@
                 <cefSharp:ChromiumWebBrowser x:Name="browser"
                                              Width="{Binding ElementName=clientWidthSlider, Path=Value}"
                                              Height="900"
-                                             RenderOptions.BitmapScalingMode="HighQuality"
                                   Opacity="{Binding ElementName=opacitySlider, Path=Value}"
                                   Address="{Binding Address, Mode=TwoWay}"
                                   Title="{Binding Title, Mode=OneWayToSource}"
