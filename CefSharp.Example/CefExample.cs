@@ -193,7 +193,7 @@ namespace CefSharp.Example
             settings.RegisterScheme(new CefCustomScheme
             {
                 SchemeName = "localfolder",
-                SchemeHandlerFactory = new FolderSchemeHandlerFactory(rootFolder: @"..\..\..\..\CefSharp.Example\Resources",
+                SchemeHandlerFactory = new FolderSchemeHandlerFactory(rootFolder: "Resources",
                                                                     schemeName: "localfolder", //Optional param no schemename checking if null
                                                                     hostName: "cefsharp", //Optional param no hostname checking if null
                                                                     defaultPage: "home.html") //Optional param will default to index.html
