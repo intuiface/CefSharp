@@ -87,11 +87,34 @@ namespace CefSharp.Example
             //Possibly useful when experiencing blury fonts.
             //settings.CefCommandLineArgs.Add("disable-direct-write", "1");
 
+            settings.CefCommandLineArgs.Add("enable-gpu", "1");
+            settings.CefCommandLineArgs.Add("enable-webgl", "1");
+            //settings.CefCommandLineArgs.Add("touch-events", "enabled");
+            //settings.CefCommandLineArgs.Add("enable-touch-event", "1");
+            //settings.CefCommandLineArgs.Add("enable-pinch", "1");
+            //settings.CefCommandLineArgs.Add("touch-devices", "10");
+
+            //settings.CefCommandLineArgs.Add("disable-gpu", "1");
+            //settings.CefCommandLineArgs.Add("disable-gpu-compositing", "1");
+            //settings.CefCommandLineArgs.Add("enable-begin-frame-scheduling", "1");
+            //settings.CefCommandLineArgs.Add("disable-surfaces", "1");
+            //settings.CefCommandLineArgs.Add("angle", "1");
+            //settings.CefCommandLineArgs.Add("create-default-gl-context", "1");
+
+            //settings.CefCommandLineArgs.Add("disable-gpu-sandbox", "1");
+            //settings.CefCommandLineArgs.Add("disable-accelerated-video-decode", "1");
+
+            //settings.CefCommandLineArgs.Add("disable-direct-composition", "1");
+
+            // DevTools doesn't seem to be working when this is enabled
+            // http://magpcss.org/ceforum/viewtopic.php?f=6&t=14095
+            //settings.CefCommandLineArgs.Add("enable-begin-frame-scheduling", "1");
+
             settings.MultiThreadedMessageLoop = multiThreadedMessageLoop;
             settings.ExternalMessagePump = !multiThreadedMessageLoop;
 
             // Off Screen rendering (WPF/Offscreen)
-            if(osr)
+            if (osr)
             {
                 settings.WindowlessRenderingEnabled = true;
 
@@ -126,12 +149,6 @@ namespace CefSharp.Example
             
             //settings.LogSeverity = LogSeverity.Verbose;
 
-            if (DebuggingSubProcess)
-            {
-                var architecture = Environment.Is64BitProcess ? "x64" : "x86";
-                settings.BrowserSubprocessPath = "..\\..\\..\\..\\CefSharp.BrowserSubprocess\\bin\\" + architecture + "\\Debug\\CefSharp.BrowserSubprocess.exe";
-            }
-
             settings.RegisterScheme(new CefCustomScheme
             {
                 SchemeName = CefSharpSchemeHandlerFactory.SchemeName,
@@ -145,20 +162,11 @@ namespace CefSharp.Example
                 SchemeHandlerFactory = new CefSharpSchemeHandlerFactory()
             });
 
-            settings.RegisterScheme(new CefCustomScheme
-            {
-                SchemeName = "localfolder",
-                SchemeHandlerFactory = new FolderSchemeHandlerFactory(rootFolder: @"..\..\..\..\CefSharp.Example\Resources",
-                                                                    schemeName: "localfolder", //Optional param no schemename checking if null
-                                                                    hostName: "cefsharp", //Optional param no hostname checking if null
-                                                                    defaultPage: "home.html") //Optional param will default to index.html
-            });			
-
-            settings.RegisterExtension(new CefExtension("cefsharp/example", Resources.extension));
+            
 
             settings.FocusedNodeChangedEnabled = true;
 
-            if (!Cef.Initialize(settings, performDependencyCheck: !DebuggingSubProcess, browserProcessHandler: browserProcessHandler))
+            if (!Cef.Initialize(settings, performDependencyCheck: true, browserProcessHandler: browserProcessHandler))
             {
                 throw new Exception("Unable to Initialize Cef");
             }

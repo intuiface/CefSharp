@@ -22,7 +22,6 @@ _ReSharper*
 
 bin/
 obj/
-packages/
 Debug/
 Release/
 CefSharp/app.aps

@@ -66,6 +66,18 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="SharpDX">
+      <HintPath>..\Assemblies\SharpDX.dll</HintPath>
+    </Reference>
+    <Reference Include="SharpDX.Direct3D9">
+      <HintPath>..\Assemblies\SharpDX.Direct3D9.dll</HintPath>
+    </Reference>
+    <Reference Include="SharpDX.DXGI">
+      <HintPath>..\Assemblies\SharpDX.DXGI.dll</HintPath>
+    </Reference>
+    <Reference Include="SharpDX.Mathematics">
+      <HintPath>..\Assemblies\SharpDX.Mathematics.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Core" />
@@ -79,6 +91,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DelegateCommand.cs" />
+    <Compile Include="Hack\Cameras.cs" />
+    <Compile Include="Hack\D3D.cs" />
+    <Compile Include="Hack\D3D9.cs" />
+    <Compile Include="Hack\DXImageSource.cs" />
+    <Compile Include="Hack\DXUtils.cs" />
+    <Compile Include="Hack\IDirect3D.cs" />
     <Compile Include="Internals\WpfExtensions.cs" />
     <Compile Include="Rendering\InteropBitmapInfo.cs" />
     <Compile Include="IWpfWebBrowser.cs" />

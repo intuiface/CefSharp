@@ -11,6 +11,7 @@ using CefSharp.Example;
 using CefSharp.Wpf.Example.Controls;
 using CefSharp.Wpf.Example.ViewModels;
 using Microsoft.Win32;
+using System.Windows.Interop;
 
 namespace CefSharp.Wpf.Example
 {
@@ -39,6 +40,7 @@ namespace CefSharp.Wpf.Example
 
             var bitness = Environment.Is64BitProcess ? "x64" : "x86";
             Title += " - " + bitness;
+
         }
 
         private void CloseTab(object sender, ExecutedRoutedEventArgs e)
@@ -194,6 +196,30 @@ namespace CefSharp.Wpf.Example
                     
                 }
             }
+        }
+
+        protected override void OnMouseDown(MouseButtonEventArgs e)
+        {
+            //base.OnMouseDown(e);
+            e.Handled = true;
+        }
+
+        protected override void OnMouseEnter(MouseEventArgs e)
+        {
+            //base.OnMouseEnter(e);
+            e.Handled = true;
+        }
+
+        protected override void OnMouseLeave(MouseEventArgs e)
+        {
+            //base.OnMouseLeave(e);
+            e.Handled = true;
+        }
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            //base.OnMouseMove(e);
+            e.Handled = true;
         }
 
         private void OpenTabCommandBinding(object sender, ExecutedRoutedEventArgs e)

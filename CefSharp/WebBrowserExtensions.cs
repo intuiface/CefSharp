@@ -668,6 +668,14 @@ namespace CefSharp
             host.SendMouseWheelEvent(x, y, deltaX, deltaY, modifiers);
         }
 
+        public static void SendTouchEvent(this IBrowser browser, int id, int x, int y, int eventType, CefEventFlags modifiers)
+        {
+            var host = browser.GetHost();
+            ThrowExceptionIfBrowserHostNull(host);
+            // TET_RELEASED = 0, TET_PRESSED, TET_MOVED, TET_CANCELLED<
+            host.SendTouchEvent(id, x, y, 0, 0, 0, eventType, modifiers);
+        }
+
         public static Task<JavascriptResponse> EvaluateScriptAsync(this IWebBrowser browser, string script, TimeSpan? timeout = null)
         {
             if (timeout.HasValue && timeout.Value.TotalMilliseconds > UInt32.MaxValue)

@@ -256,6 +256,18 @@ namespace CefSharp
         void SendMouseClickEvent(int x, int y, MouseButtonType mouseButtonType, bool mouseUp, int clickCount, CefEventFlags modifiers);
 
         /// <summary>
+        /// Send a given touch event.
+        /// </summary>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        /// <param name="force"></param>
+        /// <param name="radius_x"></param>
+        /// <param name="radius_y"></param>
+        /// <param name="eventType">TET_RELEASED = 0, TET_PRESSED, TET_MOVED, TET_CANCELLED</param>
+        /// <param name="modifiers"></param>
+        void SendTouchEvent(int id, int x, int y, float force, float radius_x, float radius_y, int eventType, CefEventFlags modifiers);
+
+        /// <summary>
         /// Send a mouse wheel event to the browser.
         /// </summary>
         /// <param name="x">X-Axis coordinate relative to the upper-left corner of the view.</param>

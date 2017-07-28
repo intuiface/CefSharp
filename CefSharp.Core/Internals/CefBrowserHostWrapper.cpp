@@ -1,5 +1,4 @@
-// Copyright © 2010-2016 The CefSharp Authors. All rights reserved.
-//
+// Copyright ï¿½ 2010-2016 The CefSharp Authors. All rights reserved//
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
 #include "Stdafx.h"
@@ -354,14 +353,31 @@ void CefBrowserHostWrapper::ImeCancelComposition()
 
 void CefBrowserHostWrapper::SendMouseClickEvent(int x, int y, MouseButtonType mouseButtonType, bool mouseUp, int clickCount, CefEventFlags modifiers)
 {
-    ThrowIfDisposed();
+	ThrowIfDisposed();
 
-    CefMouseEvent mouseEvent;
-    mouseEvent.x = x;
-    mouseEvent.y = y;
-    mouseEvent.modifiers = (uint32)modifiers;
+	CefMouseEvent mouseEvent;
+	mouseEvent.x = x;
+	mouseEvent.y = y;
+	mouseEvent.modifiers = (uint32)modifiers;
 
-    _browserHost->SendMouseClickEvent(mouseEvent, (CefBrowserHost::MouseButtonType) mouseButtonType, mouseUp, clickCount);
+	_browserHost->SendMouseClickEvent(mouseEvent, (CefBrowserHost::MouseButtonType) mouseButtonType, mouseUp, clickCount);
+}
+
+void CefBrowserHostWrapper::SendTouchEvent(int id, int x, int y, float force, float radius_x, float radius_y, int eventType, CefEventFlags modifiers)
+{
+	ThrowIfDisposed();
+
+	CefTouchEvent mouseEvent;
+	mouseEvent.x = x;
+	mouseEvent.y = y;
+	mouseEvent.modifiers = (uint32)modifiers;
+	mouseEvent.force = force;
+	mouseEvent.radius_x = radius_x;
+	mouseEvent.radius_y = radius_y;
+	mouseEvent.type = (cef_touch_event_type_t)eventType;
+	mouseEvent.id = id;
+
+	_browserHost->SendTouchEvent(mouseEvent);
 }
 
 void CefBrowserHostWrapper::SendMouseMoveEvent(int x, int y, bool mouseLeave, CefEventFlags modifiers)
