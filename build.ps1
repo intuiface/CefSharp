@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("vs2013", "vs2015", "nupkg-only", "gitlink")]
+    [ValidateSet("vs2013", "vs2015", "gitlink")]
     [Parameter(Position = 0)] 
     [string] $Target = "vs2013",
     [Parameter(Position = 1)]
@@ -225,59 +225,6 @@ function VSX
     Write-Diagnostic "Finished build targeting toolchain $Toolchain"
 }
 
-function NugetPackageRestore
-{
-    $nuget = Join-Path $WorkingDir .\nuget\NuGet.exe
-    if(-not (Test-Path $nuget)) {
-        Die "Please install nuget. More information available at: http://docs.nuget.org/docs/start-here/installing-nuget"
-    }
-
-    Write-Diagnostic "Restore Nuget Packages"
-
-    # Restore packages
-    . $nuget restore $CefSln
-}
-
-function Nupkg
-{
-    if (Test-Path Env:\APPVEYOR_PULL_REQUEST_NUMBER)
-    {
-        Write-Diagnostic "Pr Number: $env:APPVEYOR_PULL_REQUEST_NUMBER"
-        Write-Diagnostic "Skipping Nupkg"
-        return
-    }
-    
-    $nuget = Join-Path $WorkingDir .\nuget\NuGet.exe
-    if(-not (Test-Path $nuget)) {
-        Die "Please install nuget. More information available at: http://docs.nuget.org/docs/start-here/installing-nuget"
-    }
-
-    Write-Diagnostic "Building nuget package"
-
-    # Build packages
-    . $nuget pack nuget\CefSharp.Common.nuspec -NoPackageAnalysis -Version $Version -OutputDirectory nuget -Properties "RedistVersion=$RedistVersion"
-    . $nuget pack nuget\CefSharp.Wpf.nuspec -NoPackageAnalysis -Version $Version -OutputDirectory nuget
-    . $nuget pack nuget\CefSharp.OffScreen.nuspec -NoPackageAnalysis -Version $Version -OutputDirectory nuget
-    . $nuget pack nuget\CefSharp.WinForms.nuspec -NoPackageAnalysis -Version $Version -OutputDirectory nuget
-
-    # Invoke `AfterBuild` script if available (ie. upload packages to myget)
-    if(-not (Test-Path $WorkingDir\AfterBuild.ps1)) {
-        return
-    }
-
-    . $WorkingDir\AfterBuild.ps1 -Version $Version
-}
-
-function DownloadNuget()
-{
-    $nuget = Join-Path $WorkingDir .\nuget\NuGet.exe
-    if(-not (Test-Path $nuget))
-    {
-        $client = New-Object System.Net.WebClient;
-        $client.DownloadFile('http://nuget.org/nuget.exe', $nuget);
-    }
-}
-
 function UpdateSymbolsWithGitLink()
 {
     $gitlink = "GitLink.exe"
@@ -317,18 +264,10 @@ function WriteAssemblyVersion
 
 Write-Diagnostic "CEF Redist Version = $RedistVersion"
 
-DownloadNuget
-
-NugetPackageRestore
-
 WriteAssemblyVersion
 
 switch -Exact ($Target)
 {
-    "nupkg-only"
-    {
-        Nupkg
-    }
     "gitlink"
     {
         UpdateSymbolsWithGitLink
@@ -337,12 +276,10 @@ switch -Exact ($Target)
     {
         VSX v120
         UpdateSymbolsWithGitLink
-        Nupkg
     }
     "vs2015"
     {
         VSX v140
         UpdateSymbolsWithGitLink
-        Nupkg
     }
 }
