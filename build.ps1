@@ -5,7 +5,7 @@ param(
     [Parameter(Position = 1)]
     [string] $Version = "55.0.0",
     [Parameter(Position = 2)]
-    [string] $AssemblyVersion = "55.0.0"   
+    [string] $AssemblyVersion = "55.0.0.*"   
 )
 
 $WorkingDir = split-path -parent $MyInvocation.MyCommand.Definition
@@ -159,7 +159,7 @@ function Msvs
     $Arch = TernaryReturn ($Platform -eq 'x64') 'x64' 'win32'
 
     $Arguments = @(
-        "$CefSln",
+        "`"$CefSln`"",
         "/t:rebuild",
         "/p:VisualStudioVersion=$VisualStudioVersion",
         "/p:Configuration=$Configuration",
