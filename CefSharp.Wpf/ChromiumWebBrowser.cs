@@ -37,6 +37,15 @@ namespace CefSharp.Wpf
 
         //DX MOD
 
+        public int Framerate_LastSecond = 0;
+        public int Framerate_FrameCountByDelta = 0;
+        public int Framerate_FramerateValue = 0;
+
+        public BitmapInfo CurrentPopup = null;
+        public Rect CurrentPopupPosition;
+        public bool PopupVisibility = false;
+        BitmapInfo LastInfo = null;
+
         /// <summary>
         /// System copy memory.
         /// </summary>
@@ -756,11 +765,6 @@ namespace CefSharp.Wpf
             //TODO: Someone should implement this
         }
 
-        public BitmapInfo CurrentPopup = null;
-        public Rect CurrentPopupPosition;
-        public bool PopupVisibility = false;
-        BitmapInfo LastInfo = null;
-
         volatile bool hasBeenRendered = true;
         /// <summary>
         /// Invokes the render asynchronous.
@@ -770,7 +774,7 @@ namespace CefSharp.Wpf
         {
             if (bitmapInfo.IsPopup)
             {
-                CurrentPopup = bitmapInfo;
+                 CurrentPopup = bitmapInfo;
                 InvokeRenderAsync(LastInfo);
             }
             else
@@ -802,33 +806,54 @@ namespace CefSharp.Wpf
 
                         lock (info.BitmapLock)
                         {
+                            var sec = DateTime.Now.Second;
+                            if (Framerate_LastSecond != sec)
+                            {
+                                Framerate_FramerateValue = Framerate_FrameCountByDelta;
+                                Framerate_LastSecond = sec;
+                                Framerate_FrameCountByDelta = 1;
+                            }
+                            else
+                            {
+                                Framerate_FrameCountByDelta++;
+                            }
+
                             var data = texA.LockRectangle(0, LockFlags.None);
                             if (info.BackBufferHandle != IntPtr.Zero)
                                 lock (info.BitmapLock)
                                 {
-                                    if (info.DirtyRectSupport)
+                                    if (PopupVisibility == false && CurrentPopup != null)
                                     {
-                                        //Only copy part that has changed like : 
-                                        //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                                        //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                                        //OOOOOOOOOOOOOOUUU-----------------------
-                                        //--------------UUU-----------------------
-                                        //--------------UUUOOOOOOOOOOOOOOOOOOOOOOO
-                                        //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                                        //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                                        //U : pixel that have changed in the image
-                                        //Only byte with U and - are copied in only one pass
-                                        CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.DirtyRect, info);
+                                        //Case of a total redraw, to be sure :)
+                                        CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.NumberOfBytes);
+                                        CurrentPopup = null;
                                     }
                                     else
                                     {
-                                        //Copy everithing. no dirty rect
-                                        CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.NumberOfBytes);
-                                    }
+                                        if (info.DirtyRectSupport)
+                                        {
+                                            //Only copy part that has changed like : 
+                                            //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                                            //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                                            //OOOOOOOOOOOOOOUUU-----------------------
+                                            //--------------UUU-----------------------
+                                            //--------------UUUOOOOOOOOOOOOOOOOOOOOOOO
+                                            //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                                            //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                                            //U : pixel that have changed in the image
+                                            //Only byte with U and - are copied in only one pass
+                                            CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.DirtyRect, info);
+                                        }
+                                        else
+                                        {
+                                            //Copy everithing. no dirty rect
+                                            CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.NumberOfBytes);
+                                        }
 
-                                    if (PopupVisibility == true && CurrentPopup != null)
-                                    {
-                                        CopyMemoryGentle(CurrentPopup.BackBufferHandle, data.DataPointer, CurrentPopup, info);
+                                        if (PopupVisibility == true && CurrentPopup != null)
+                                        {
+                                            CopyMemoryGentle(CurrentPopup.BackBufferHandle, data.DataPointer, CurrentPopup, info);
+                                        }
                                     }
 
                                 }
@@ -2234,7 +2259,7 @@ namespace CefSharp.Wpf
             //Enable WCF if not already enabled
             CefSharpSettings.WcfEnabled = true;
 
-            managedCefBrowserAdapter.RegisterJsObject(name, objectToBind, options);
+            managedCefBrowserAdapter.RegisterJsObject(name, objectToBind, options ?? BindingOptions.DefaultBinder);
         }
 
         /// <summary>
