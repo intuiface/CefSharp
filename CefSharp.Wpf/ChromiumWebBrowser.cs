@@ -469,17 +469,8 @@ namespace CefSharp.Wpf
                 }
             }
         }
-        //private bool isOnTouch = false;
-        protected override void OnTouchDown(TouchEventArgs e)
-        {
-#if DEBUG
-            Focus();
-            this.CaptureTouch(e.TouchDevice);
-            var tp = e.GetTouchPoint(this);
-            browser.SendTouchEvent(tp.TouchDevice.Id, (int)tp.Position.X, (int)tp.Position.Y, 1, CefEventFlags.None);
-#endif
-            e.Handled = true;
-        }
+
+       
 
         protected override void OnTouchEnter(TouchEventArgs e)
         {
@@ -491,12 +482,18 @@ namespace CefSharp.Wpf
             e.Handled = true;
         }
 
+
+
+
+
+
+
+
         int oldX = 0;
         int oldY = 0;
 
-        protected override void OnTouchMove(TouchEventArgs e)
+        public void TouchMove(TouchEventArgs e)
         {
-#if DEBUG
             var tp = e.GetTouchPoint(this);
             int tempX = (int)tp.Position.X;
             int tempY = (int)tp.Position.Y;
@@ -507,22 +504,35 @@ namespace CefSharp.Wpf
                 browser.SendTouchEvent(tp.TouchDevice.Id, tempX, tempY, 2, CefEventFlags.None);
                 base.OnTouchMove(e);
             }
-#endif
             e.Handled = true;
         }
 
-        protected override void OnTouchUp(TouchEventArgs e)
+
+
+        public void TouchUp(TouchEventArgs e)
         {
-#if DEBUG
             oldX = 0;
             oldY = 0;
             var tp = e.GetTouchPoint(this);
             browser.SendTouchEvent(tp.TouchDevice.Id, (int)tp.Position.X, (int)tp.Position.Y, 0, CefEventFlags.None);
             this.ReleaseTouchCapture(e.TouchDevice);
             base.OnTouchUp(e);
-#endif
             e.Handled = true;
         }
+
+        protected void TouchDown(TouchEventArgs e)
+        {
+            Focus();
+            this.CaptureTouch(e.TouchDevice);
+            var tp = e.GetTouchPoint(this);
+            browser.SendTouchEvent(tp.TouchDevice.Id, (int)tp.Position.X, (int)tp.Position.Y, 1, CefEventFlags.None);
+            e.Handled = true;
+        }
+
+
+
+
+
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ChromiumWebBrowser"/> class.
@@ -2097,9 +2107,8 @@ namespace CefSharp.Wpf
         /// Invoked when an unhandled <see cref="E:System.Windows.Input.Mouse.MouseMove" /> attached event reaches an element in its route that is derived from this class. Implement this method to add class handling for this event.
         /// </summary>
         /// <param name="e">The <see cref="T:System.Windows.Input.MouseEventArgs" /> that contains the event data.</param>
-        protected override void OnMouseMove(MouseEventArgs e)
+        public void MouseMove(MouseEventArgs e)
         {
-#if DEBUG
             if (browser != null)
             {
                 var point = e.GetPosition(this);
@@ -2107,7 +2116,6 @@ namespace CefSharp.Wpf
 
                 browser.GetHost().SendMouseMoveEvent((int)point.X, (int)point.Y, false, modifiers);
             }
-#endif
             e.Handled = true;
         }
 
@@ -2127,13 +2135,11 @@ namespace CefSharp.Wpf
         /// </summary>
         /// <param name="e">The <see cref="T:System.Windows.Input.MouseButtonEventArgs" /> that contains the event data.
         /// This event data reports details about the mouse button that was pressed and the handled state.</param>
-        protected override void OnMouseDown(MouseButtonEventArgs e)
+        protected void MouseDown(MouseButtonEventArgs e)
         {
-#if DEBUG
             Focus();
             OnMouseButton(e);
             Mouse.Capture(this);
-#endif
             e.Handled = true;
         }
 
@@ -2141,12 +2147,10 @@ namespace CefSharp.Wpf
         /// Invoked when an unhandled <see cref="E:System.Windows.Input.Mouse.MouseUp" /> routed event reaches an element in its route that is derived from this class. Implement this method to add class handling for this event.
         /// </summary>
         /// <param name="e">The <see cref="T:System.Windows.Input.MouseButtonEventArgs" /> that contains the event data. The event data reports that the mouse button was released.</param>
-        protected override void OnMouseUp(MouseButtonEventArgs e)
+        protected void MouseUp(MouseButtonEventArgs e)
         {
-#if DEBUG
             OnMouseButton(e);
             Mouse.Capture(null);
-#endif
             e.Handled = true;
         }
 
@@ -2154,9 +2158,8 @@ namespace CefSharp.Wpf
         /// Invoked when an unhandled <see cref="E:System.Windows.Input.Mouse.MouseLeave" /> attached event is raised on this element. Implement this method to add class handling for this event.
         /// </summary>
         /// <param name="e">The <see cref="T:System.Windows.Input.MouseEventArgs" /> that contains the event data.</param>
-        protected override void OnMouseLeave(MouseEventArgs e)
+        protected void MouseLeave(MouseEventArgs e)
         {
-#if DEBUG
             if (browser != null)
             {
                 var modifiers = e.GetModifiers();
@@ -2165,7 +2168,6 @@ namespace CefSharp.Wpf
 
                 ((IWebBrowserInternal)this).SetTooltipText(null);
             }
-#endif
             e.Handled = true;
         }
 

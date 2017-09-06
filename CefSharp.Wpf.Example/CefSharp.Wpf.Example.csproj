@@ -102,6 +102,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Compile Include="Controls\ChromiumBrowser.cs" />
     <Compile Include="Controls\CefSharpCommands.cs" />
     <Compile Include="Controls\NonReloadingTabControl.cs" />
     <Compile Include="Handlers\DragHandler.cs" />
@@ -188,4 +189,7 @@
   <Import Project="$(SolutionDir)\CefSharp.Native.props" />
   <Import Project="..\packages\cef.redist.x64.3.2883.1552\build\cef.redist.x64.targets" Condition="Exists('..\packages\cef.redist.x64.3.2883.1552\build\cef.redist.x64.targets')" />
   <Import Project="..\packages\cef.redist.x86.3.2883.1552\build\cef.redist.x86.targets" Condition="Exists('..\packages\cef.redist.x86.3.2883.1552\build\cef.redist.x86.targets')" />
+  <PropertyGroup>
+    <PostBuildEvent>xcopy "$(SolutionDir)packages\Dependencies\$(PlatformName)\*.*" "$(TargetDir)" /Y</PostBuildEvent>
+  </PropertyGroup>
 </Project>
