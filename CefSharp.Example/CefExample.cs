@@ -79,7 +79,7 @@ namespace CefSharp.Example
             //settings.SetOffScreenRenderingBestPerformanceArgs();
             //settings.CefCommandLineArgs.Add("disable-gpu", "1");
             //settings.CefCommandLineArgs.Add("disable-gpu-compositing", "1");
-            //settings.CefCommandLineArgs.Add("enable-begin-frame-scheduling", "1");
+            settings.CefCommandLineArgs.Add("enable-begin-frame-scheduling", "1");
 
             //settings.CefCommandLineArgs.Add("disable-gpu-vsync", "1"); //Disable Vsync
 
@@ -97,11 +97,11 @@ namespace CefSharp.Example
             //settings.CefCommandLineArgs.Add("disable-gpu", "1");
             //settings.CefCommandLineArgs.Add("disable-gpu-compositing", "1");
             //settings.CefCommandLineArgs.Add("enable-begin-frame-scheduling", "1");
-            //settings.CefCommandLineArgs.Add("disable-surfaces", "1");
-            //settings.CefCommandLineArgs.Add("angle", "1");
-            //settings.CefCommandLineArgs.Add("create-default-gl-context", "1");
+            settings.CefCommandLineArgs.Add("disable-surfaces", "1");
+            settings.CefCommandLineArgs.Add("angle", "1");
+            settings.CefCommandLineArgs.Add("create-default-gl-context", "1");
 
-            //settings.CefCommandLineArgs.Add("disable-gpu-sandbox", "1");
+            settings.CefCommandLineArgs.Add("disable-gpu-sandbox", "1");
             //settings.CefCommandLineArgs.Add("disable-accelerated-video-decode", "1");
 
             //settings.CefCommandLineArgs.Add("disable-direct-composition", "1");
