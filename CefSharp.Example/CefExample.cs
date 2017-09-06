@@ -78,7 +78,7 @@ namespace CefSharp.Example
             //NOTE: The following function will set all three params
             //settings.SetOffScreenRenderingBestPerformanceArgs();
             //settings.CefCommandLineArgs.Add("disable-gpu", "1");
-            //settings.CefCommandLineArgs.Add("disable-gpu-compositing", "1");
+            settings.CefCommandLineArgs.Add("disable-gpu-compositing", "1");
             settings.CefCommandLineArgs.Add("enable-begin-frame-scheduling", "1");
 
             //settings.CefCommandLineArgs.Add("disable-gpu-vsync", "1"); //Disable Vsync
@@ -95,8 +95,6 @@ namespace CefSharp.Example
             //settings.CefCommandLineArgs.Add("touch-devices", "10");
 
             //settings.CefCommandLineArgs.Add("disable-gpu", "1");
-            //settings.CefCommandLineArgs.Add("disable-gpu-compositing", "1");
-            //settings.CefCommandLineArgs.Add("enable-begin-frame-scheduling", "1");
             settings.CefCommandLineArgs.Add("disable-surfaces", "1");
             settings.CefCommandLineArgs.Add("angle", "1");
             settings.CefCommandLineArgs.Add("create-default-gl-context", "1");
