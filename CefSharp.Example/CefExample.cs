@@ -94,7 +94,7 @@ namespace CefSharp.Example
             //Possibly useful when experiencing blury fonts.
             //settings.CefCommandLineArgs.Add("disable-direct-write", "1");
 
-            settings.CefCommandLineArgs.Add("enable-gpu", "1");
+            settings.CefCommandLineArgs.Add("disable-gpu", "1");
             settings.CefCommandLineArgs.Add("enable-webgl", "1");
             
             //settings.CefCommandLineArgs.Add("touch-events", "enabled");
