@@ -96,6 +96,8 @@ namespace CefSharp.Example
 
             settings.CefCommandLineArgs.Add("enable-gpu", "1");
             settings.CefCommandLineArgs.Add("enable-webgl", "1");
+            settings.CefCommandLineArgs.Add("disable-d3d11", "1");
+            
             //settings.CefCommandLineArgs.Add("touch-events", "enabled");
             //settings.CefCommandLineArgs.Add("enable-touch-event", "1");
             //settings.CefCommandLineArgs.Add("enable-pinch", "1");
