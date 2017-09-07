@@ -48,7 +48,7 @@ namespace CefSharp.Wpf
 
         //DX MOD
 
-        public bool IsDirectXRendering = true;
+        public bool IsDirectXRendering = false;
 
         public int Framerate_LastSecond = 0;
         public int Framerate_FrameCountByDelta = 0;
