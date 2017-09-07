@@ -78,7 +78,14 @@ namespace CefSharp.Example
             //NOTE: The following function will set all three params
             //settings.SetOffScreenRenderingBestPerformanceArgs();
             //settings.CefCommandLineArgs.Add("disable-gpu", "1");
-            settings.CefCommandLineArgs.Add("disable-gpu-compositing", "1");
+            //settings.CefCommandLineArgs.Add("disable-gpu-compositing", "1");
+            settings.CefCommandLineArgs.Add("disable-gpu-early-init", "1");
+            settings.CefCommandLineArgs.Add("disable-gpu-rasterization", "1");
+            settings.CefCommandLineArgs.Add("disable-gpu-sandbox", "1");
+            //settings.CefCommandLineArgs.Add("disable-gpu-vsync", "1");
+
+
+
             //settings.CefCommandLineArgs.Add("enable-begin-frame-scheduling", "1");
 
             //settings.CefCommandLineArgs.Add("disable-gpu-vsync", "1"); //Disable Vsync
