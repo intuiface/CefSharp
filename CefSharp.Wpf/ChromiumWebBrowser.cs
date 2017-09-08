@@ -48,7 +48,7 @@ namespace CefSharp.Wpf
 
         //DX MOD
 
-        public bool IsDirectXRendering = false;
+        public bool IsDirectXRendering = true;
 
         public int Framerate_LastSecond = 0;
         public int Framerate_FrameCountByDelta = 0;
@@ -1829,7 +1829,7 @@ namespace CefSharp.Wpf
             var webBrowserInternal = this as IWebBrowserInternal;
             if (!webBrowserInternal.HasParent)
             {
-                BrowserSettings.WindowlessFrameRate = 90;
+                BrowserSettings.WindowlessFrameRate = 30;
                 managedCefBrowserAdapter.CreateOffscreenBrowser(source == null ? IntPtr.Zero : source.Handle, BrowserSettings, RequestContext, Address);
             }
             browserCreated = true;
