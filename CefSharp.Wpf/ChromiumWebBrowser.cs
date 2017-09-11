@@ -46,6 +46,23 @@ namespace CefSharp.Wpf
 
         //END OF POPUP MOD
 
+        private int _WindowLessFramerate = 60;
+        public int WindowLessFramerate
+        {
+            get
+            {
+                return _WindowLessFramerate;
+            }
+            set
+            {
+                _WindowLessFramerate = value;
+                if (browser != null)
+                {
+                    BrowserSettings.WindowlessFrameRate = value;
+                }
+            }
+        }
+
         //DX MOD
 
         public bool IsDirectXRendering = true;
@@ -1829,7 +1846,7 @@ namespace CefSharp.Wpf
             var webBrowserInternal = this as IWebBrowserInternal;
             if (!webBrowserInternal.HasParent)
             {
-                BrowserSettings.WindowlessFrameRate = 30;
+                BrowserSettings.WindowlessFrameRate = WindowLessFramerate;
                 managedCefBrowserAdapter.CreateOffscreenBrowser(source == null ? IntPtr.Zero : source.Handle, BrowserSettings, RequestContext, Address);
             }
             browserCreated = true;
