@@ -502,18 +502,6 @@ namespace CefSharp.Wpf
 
 
 
-        protected override void OnTouchEnter(TouchEventArgs e)
-        {
-            e.Handled = true;
-        }
-
-        protected override void OnTouchLeave(TouchEventArgs e)
-        {
-            e.Handled = true;
-        }
-
-
-
 
 
 
@@ -632,6 +620,7 @@ namespace CefSharp.Wpf
             popupPosition = new System.Drawing.Point();
             popupSize = new System.Drawing.Size();
         }
+        
 
         /// <summary>
         /// Finalizes an instance of the <see cref="ChromiumWebBrowser"/> class.
