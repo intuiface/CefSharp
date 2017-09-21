@@ -620,7 +620,7 @@ namespace CefSharp.Wpf
             popupPosition = new System.Drawing.Point();
             popupSize = new System.Drawing.Size();
         }
-        
+
 
         /// <summary>
         /// Finalizes an instance of the <see cref="ChromiumWebBrowser"/> class.
@@ -806,162 +806,164 @@ namespace CefSharp.Wpf
         {
             if (IsDirectXRendering)
             {
-                if (bitmapInfo.IsPopup)
-                {
-                    CurrentPopup = bitmapInfo;
-                    InvokeRenderAsync(LastInfo);
-                }
-                else
-                {
-                    var info = bitmapInfo;
-                    LastInfo = bitmapInfo;
-                    if (!IsDirectXInitialized)
-                    {
-                        //popup = null;
-                        InitTextures(info);
-                    }
-                    else if (texHeight != info.Height || texWidth != info.Width)
-                    {
-                        var bitmapLock = info.BitmapLock;
-                        UiThreadRunAsync(delegate
-                        {
-                            lock (bitmapLock)
-                            {
-                                ReInitTextures(info);
-                            }
-                        });
-                        return;
-                    }
-                    else
-                    {
-                        if (hasBeenRendered)
-                        {
-                            hasBeenRendered = false;
-
-                            lock (info.BitmapLock)
-                            {
-                                var sec = DateTime.Now.Second;
-                                if (Framerate_LastSecond != sec)
-                                {
-                                    Framerate_FramerateValue = Framerate_FrameCountByDelta;
-                                    Framerate_LastSecond = sec;
-                                    Framerate_FrameCountByDelta = 1;
-                                }
-                                else
-                                {
-                                    Framerate_FrameCountByDelta++;
-                                }
-
-                                var data = texA.LockRectangle(0, LockFlags.None);
-                                if (info.BackBufferHandle != IntPtr.Zero)
-                                    lock (info.BitmapLock)
-                                    {
-                                        if (PopupVisibility == false && CurrentPopup != null)
-                                        {
-                                            //Case of a total redraw, to be sure :)
-                                            CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.NumberOfBytes);
-                                            CurrentPopup = null;
-                                        }
-                                        else
-                                        {
-                                            if (info.DirtyRectSupport)
-                                            {
-                                                //Only copy part that has changed like : 
-                                                //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                                                //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                                                //OOOOOOOOOOOOOOUUU-----------------------
-                                                //--------------UUU-----------------------
-                                                //--------------UUUOOOOOOOOOOOOOOOOOOOOOOO
-                                                //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                                                //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                                                //U : pixel that have changed in the image
-                                                //Only byte with U and - are copied in only one pass
-                                                CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.DirtyRect, info);
-                                            }
-                                            else
-                                            {
-                                                //Copy everithing. no dirty rect
-                                                CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.NumberOfBytes);
-                                            }
-
-                                            if (PopupVisibility == true && CurrentPopup != null)
-                                            {
-                                                CopyMemoryGentle(CurrentPopup.BackBufferHandle, data.DataPointer, CurrentPopup, info);
-                                            }
-                                        }
-
-                                    }
-                                texA.UnlockRectangle(0);
-                            }
-                        }
-                        device9.Value.Device.UpdateTexture(texA, tex);
-
-                        UiThreadRunAsync(delegate
-                        {
-                            if (!(image.Source is DXImageSource))
-                            {
-                                lock (this)
-                                {
-                                    src = new DXImageSource();
-                                    src.OnContextRetreived += Src_OnContextRetreived;
-                                    src.SetBackBuffer(tex);
-                                    image.Source = src;
-                                }
-                            }
-                            else
-                            {
-                                src.Invalidate();
-                            }
-                            hasBeenRendered = true;
-                        },
-                    DispatcherPriority.Render);
-                    }
-                }
+                DirectXRender(bitmapInfo);
             }
             else
             {
-                UiThreadRunAsync(delegate
-                {
-                    lock (bitmapInfo.BitmapLock)
-                    {
-                        var wpfBitmapInfo = (WpfBitmapInfo)bitmapInfo;
-                        if (wpfBitmapInfo.CreateNewBitmap)
-                        {
-                            if (wpfBitmapInfo.IsPopup)
-                            {
-                                if (Popup != null)
-                                {
-                                    Popup = null;
-                                }
+                BitmapRender(bitmapInfo);
+            }
+        }
 
-                                Popup = wpfBitmapInfo.CreateBitmap();
+        private void BitmapRender(BitmapInfo bitmapInfo)
+        {
+            UiThreadRunAsync(delegate
+            {
+                lock (bitmapInfo.BitmapLock)
+                {
+                    var wpfBitmapInfo = (WpfBitmapInfo)bitmapInfo;
+                    if (wpfBitmapInfo.CreateNewBitmap)
+                    {
+                        if (wpfBitmapInfo.IsPopup)
+                        {
+                            if (Popup != null)
+                            {
+                                Popup = null;
+                            }
+
+                            Popup = wpfBitmapInfo.CreateBitmap();
+                        }
+                        else
+                        {
+                            if (Bitmap != null)
+                            {
+                                Bitmap = null;
+                            }
+
+                            Bitmap = wpfBitmapInfo.CreateBitmap();
+                        }
+                    }
+                    else
+                    {
+                        wpfBitmapInfo.Invalidate();
+                    }
+
+
+                    if (PopupJustOpened && Bitmap != null && Popup != null)
+                    {
+                        image.Source = MergeBitmaps(Bitmap, Popup);
+                    }
+                    else
+                    {
+                        image.Source = Bitmap;
+                    }
+                }
+            });
+        }
+
+        private void DirectXRender(BitmapInfo bitmapInfo)
+        {
+            if (bitmapInfo.IsPopup)
+            {
+                CurrentPopup = bitmapInfo;
+                InvokeRenderAsync(LastInfo);
+            }
+            else
+            {
+                var info = bitmapInfo;
+                LastInfo = bitmapInfo;
+                if (!IsDirectXInitialized)
+                {
+                    //popup = null;
+                    InitTextures(info);
+                }
+                else if (texHeight != info.Height || texWidth != info.Width)
+                {
+                    var bitmapLock = info.BitmapLock;
+                    UiThreadRunAsync(delegate
+                    {
+                        lock (bitmapLock)
+                        {
+                            ReInitTextures(info);
+                        }
+                    });
+                    return;
+                }
+                else
+                {
+                    lock (info.BitmapLock)
+                    {
+                        var sec = DateTime.Now.Second;
+                        if (Framerate_LastSecond != sec)
+                        {
+                            Framerate_FramerateValue = Framerate_FrameCountByDelta;
+                            Framerate_LastSecond = sec;
+                            Framerate_FrameCountByDelta = 1;
+                        }
+                        else
+                        {
+                            Framerate_FrameCountByDelta++;
+                        }
+
+                        var data = texA.LockRectangle(0, LockFlags.None);
+                        if (info.BackBufferHandle != IntPtr.Zero)
+                            if (PopupVisibility == false && CurrentPopup != null)
+                            {
+                                //Case of a total redraw, to be sure :)
+                                CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.NumberOfBytes);
+                                CurrentPopup = null;
                             }
                             else
                             {
-                                if (Bitmap != null)
+                                if (info.DirtyRectSupport)
                                 {
-                                    Bitmap = null;
+                                    //Only copy part that has changed like : 
+                                    //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                                    //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                                    //OOOOOOOOOOOOOOUUU-----------------------
+                                    //--------------UUU-----------------------
+                                    //--------------UUUOOOOOOOOOOOOOOOOOOOOOOO
+                                    //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                                    //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                                    //U : pixel that have changed in the image
+                                    //Only byte with U and - are copied in only one pass
+                                    CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.DirtyRect, info);
+                                }
+                                else
+                                {
+                                    //Copy everithing. no dirty rect
+                                    CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.NumberOfBytes);
                                 }
 
-                                Bitmap = wpfBitmapInfo.CreateBitmap();
+                                if (PopupVisibility == true && CurrentPopup != null)
+                                {
+                                    CopyMemoryGentle(CurrentPopup.BackBufferHandle, data.DataPointer, CurrentPopup, info);
+                                }
+                            }
+                        texA.UnlockRectangle(0);
+                    }
+
+                    device9.Value.Device.UpdateTexture(texA, tex);
+
+                    UiThreadRunAsync(delegate
+                    {
+                        if (!(image.Source is DXImageSource))
+                        {
+                            lock (this)
+                            {
+                                src = new DXImageSource();
+                                src.OnContextRetreived += Src_OnContextRetreived;
+                                src.SetBackBuffer(tex);
+                                image.Source = src;
                             }
                         }
                         else
                         {
-                            wpfBitmapInfo.Invalidate();
+                            src.Invalidate();
                         }
-
-
-                        if (PopupJustOpened && Bitmap != null && Popup != null)
-                        {
-                            image.Source = MergeBitmaps(Bitmap, Popup);
-                        }
-                        else
-                        {
-                            image.Source = Bitmap;
-                        }
-                    }
-                });
+                        hasBeenRendered = true;
+                    },
+                DispatcherPriority.Render);
+                }
             }
         }
 
@@ -1963,7 +1965,7 @@ namespace CefSharp.Wpf
         {
             var stride = (secondBitmap.PixelWidth * secondBitmap.Format.BitsPerPixel + 7) / 8;
             var wb = new WriteableBitmap(firstBitmap);
-            
+
             int size = secondBitmap.PixelHeight * stride;
             byte[] pixels = new byte[size];
             secondBitmap.CopyPixels(pixels, stride, 0);
