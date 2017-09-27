@@ -804,13 +804,24 @@ namespace CefSharp.Wpf
         /// <param name="bitmapInfo">The bitmap information.</param>
         public void InvokeRenderAsync(BitmapInfo bitmapInfo)
         {
-            if (IsDirectXRendering)
+            try
             {
-                DirectXRender(bitmapInfo);
+                if (IsDirectXRendering)
+                {
+                    DirectXRender(bitmapInfo);
+                }
+                else
+                {
+                    BitmapRender(bitmapInfo);
+                }
             }
-            else
+            catch (Exception e)
             {
-                BitmapRender(bitmapInfo);
+                if (IsDirectXRendering)
+                {
+                    //Unable to render. Maybe context lost..
+                    IsDirectXInitialized = false;
+                }
             }
         }
 
