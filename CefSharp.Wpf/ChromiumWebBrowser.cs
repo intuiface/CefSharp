@@ -43,6 +43,7 @@ namespace CefSharp.Wpf
         private System.Drawing.Size popupSize;
         public BitmapSource Popup { get; protected set; }
         public BitmapSource Bitmap { get; protected set; }
+        public DispatcherTimer LatencyTimer { get; protected set; }
 
         //END OF POPUP MOD
 
@@ -558,6 +559,12 @@ namespace CefSharp.Wpf
         /// <exception cref="System.InvalidOperationException">Cef::Initialize() failed</exception>
         public ChromiumWebBrowser()
         {
+            LatencyTimer = new DispatcherTimer();
+            LatencyTimer.Interval = TimeSpan.FromSeconds(1);
+            LatencyTimer.Tick += ForceTimerRender;
+            LatencyTimer.Start();
+
+
             if (!Cef.IsInitialized && !Cef.Initialize())
             {
                 throw new InvalidOperationException("Cef::Initialize() failed");
@@ -797,6 +804,13 @@ namespace CefSharp.Wpf
             //TODO: Someone should implement this
         }
 
+
+
+        private void ForceTimerRender(object sender, EventArgs e)
+        {
+            InvokeRenderAsync(LastInfo);
+        }
+
         volatile bool hasBeenRendered = true;
         /// <summary>
         /// Invokes the render asynchronous.
@@ -806,6 +820,8 @@ namespace CefSharp.Wpf
         {
             try
             {
+                LatencyTimer.Stop();
+                LatencyTimer.Start();
                 if (IsDirectXRendering)
                 {
                     DirectXRender(bitmapInfo);
