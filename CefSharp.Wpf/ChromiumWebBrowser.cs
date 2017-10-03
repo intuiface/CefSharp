@@ -43,7 +43,6 @@ namespace CefSharp.Wpf
         private System.Drawing.Size popupSize;
         public BitmapSource Popup { get; protected set; }
         public BitmapSource Bitmap { get; protected set; }
-        public DispatcherTimer LatencyTimer { get; protected set; }
 
         //END OF POPUP MOD
 
@@ -559,11 +558,6 @@ namespace CefSharp.Wpf
         /// <exception cref="System.InvalidOperationException">Cef::Initialize() failed</exception>
         public ChromiumWebBrowser()
         {
-            LatencyTimer = new DispatcherTimer();
-            LatencyTimer.Interval = TimeSpan.FromSeconds(1);
-            LatencyTimer.Tick += ForceTimerRender;
-            LatencyTimer.Start();
-
 
             if (!Cef.IsInitialized && !Cef.Initialize())
             {
@@ -804,13 +798,6 @@ namespace CefSharp.Wpf
             //TODO: Someone should implement this
         }
 
-
-
-        private void ForceTimerRender(object sender, EventArgs e)
-        {
-            InvokeRenderAsync(LastInfo);
-        }
-
         volatile bool hasBeenRendered = true;
         /// <summary>
         /// Invokes the render asynchronous.
@@ -820,8 +807,6 @@ namespace CefSharp.Wpf
         {
             try
             {
-                LatencyTimer.Stop();
-                LatencyTimer.Start();
                 if (IsDirectXRendering)
                 {
                     DirectXRender(bitmapInfo);
@@ -889,107 +874,110 @@ namespace CefSharp.Wpf
 
         private void DirectXRender(BitmapInfo bitmapInfo)
         {
-            if (bitmapInfo.IsPopup)
+            if (bitmapInfo != null)
             {
-                CurrentPopup = bitmapInfo;
-                InvokeRenderAsync(LastInfo);
-            }
-            else
-            {
-                var info = bitmapInfo;
-                LastInfo = bitmapInfo;
-                if (!IsDirectXInitialized)
+                if (bitmapInfo.IsPopup)
                 {
-                    //popup = null;
-                    InitTextures(info);
-                }
-                else if (texHeight != info.Height || texWidth != info.Width)
-                {
-                    var bitmapLock = info.BitmapLock;
-                    UiThreadRunAsync(delegate
-                    {
-                        lock (bitmapLock)
-                        {
-                            ReInitTextures(info);
-                        }
-                    });
-                    return;
+                    CurrentPopup = bitmapInfo;
+                    InvokeRenderAsync(LastInfo);
                 }
                 else
                 {
-                    lock (info.BitmapLock)
+                    var info = bitmapInfo;
+                    LastInfo = bitmapInfo;
+                    if (!IsDirectXInitialized)
                     {
-                        var sec = DateTime.Now.Second;
-                        if (Framerate_LastSecond != sec)
+                        //popup = null;
+                        InitTextures(info);
+                    }
+                    else if (texHeight != info.Height || texWidth != info.Width)
+                    {
+                        var bitmapLock = info.BitmapLock;
+                        UiThreadRunAsync(delegate
                         {
-                            Framerate_FramerateValue = Framerate_FrameCountByDelta;
-                            Framerate_LastSecond = sec;
-                            Framerate_FrameCountByDelta = 1;
-                        }
-                        else
-                        {
-                            Framerate_FrameCountByDelta++;
-                        }
-
-                        var data = texA.LockRectangle(0, LockFlags.None);
-                        if (info.BackBufferHandle != IntPtr.Zero)
-                            if (PopupVisibility == false && CurrentPopup != null)
+                            lock (bitmapLock)
                             {
-                                //Case of a total redraw, to be sure :)
-                                CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.NumberOfBytes);
-                                CurrentPopup = null;
+                                ReInitTextures(info);
+                            }
+                        });
+                        return;
+                    }
+                    else
+                    {
+                        lock (info.BitmapLock)
+                        {
+                            var sec = DateTime.Now.Second;
+                            if (Framerate_LastSecond != sec)
+                            {
+                                Framerate_FramerateValue = Framerate_FrameCountByDelta;
+                                Framerate_LastSecond = sec;
+                                Framerate_FrameCountByDelta = 1;
                             }
                             else
                             {
-                                if (info.DirtyRectSupport)
+                                Framerate_FrameCountByDelta++;
+                            }
+
+                            var data = texA.LockRectangle(0, LockFlags.None);
+                            if (info.BackBufferHandle != IntPtr.Zero)
+                                if (PopupVisibility == false && CurrentPopup != null)
                                 {
-                                    //Only copy part that has changed like : 
-                                    //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                                    //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                                    //OOOOOOOOOOOOOOUUU-----------------------
-                                    //--------------UUU-----------------------
-                                    //--------------UUUOOOOOOOOOOOOOOOOOOOOOOO
-                                    //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                                    //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                                    //U : pixel that have changed in the image
-                                    //Only byte with U and - are copied in only one pass
-                                    CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.DirtyRect, info);
+                                    //Case of a total redraw, to be sure :)
+                                    CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.NumberOfBytes);
+                                    CurrentPopup = null;
                                 }
                                 else
                                 {
-                                    //Copy everithing. no dirty rect
-                                    CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.NumberOfBytes);
+                                    if (info.DirtyRectSupport)
+                                    {
+                                        //Only copy part that has changed like : 
+                                        //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                                        //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                                        //OOOOOOOOOOOOOOUUU-----------------------
+                                        //--------------UUU-----------------------
+                                        //--------------UUUOOOOOOOOOOOOOOOOOOOOOOO
+                                        //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                                        //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                                        //U : pixel that have changed in the image
+                                        //Only byte with U and - are copied in only one pass
+                                        CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.DirtyRect, info);
+                                    }
+                                    else
+                                    {
+                                        //Copy everithing. no dirty rect
+                                        CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.NumberOfBytes);
+                                    }
+
+                                    if (PopupVisibility == true && CurrentPopup != null)
+                                    {
+                                        CopyMemoryGentle(CurrentPopup.BackBufferHandle, data.DataPointer, CurrentPopup, info);
+                                    }
                                 }
+                            texA.UnlockRectangle(0);
+                        }
 
-                                if (PopupVisibility == true && CurrentPopup != null)
-                                {
-                                    CopyMemoryGentle(CurrentPopup.BackBufferHandle, data.DataPointer, CurrentPopup, info);
-                                }
-                            }
-                        texA.UnlockRectangle(0);
-                    }
+                        device9.Value.Device.UpdateTexture(texA, tex);
 
-                    device9.Value.Device.UpdateTexture(texA, tex);
-
-                    UiThreadRunAsync(delegate
-                    {
-                        if (!(image.Source is DXImageSource))
+                        UiThreadRunAsync(delegate
                         {
-                            lock (this)
+                            if (!(image.Source is DXImageSource))
                             {
-                                src = new DXImageSource();
-                                src.OnContextRetreived += Src_OnContextRetreived;
-                                src.SetBackBuffer(tex);
-                                image.Source = src;
+                                lock (this)
+                                {
+                                    src = new DXImageSource();
+                                    src.OnContextRetreived += Src_OnContextRetreived;
+                                    src.SetBackBuffer(tex);
+                                    image.Source = src;
+                                }
                             }
-                        }
-                        else
-                        {
-                            src.Invalidate();
-                        }
-                        hasBeenRendered = true;
-                    },
-                DispatcherPriority.Render);
+                            else
+                            {
+                                src.Invalidate();
+                            }
+                            hasBeenRendered = true;
+                        },
+                    DispatcherPriority.Render);
+                    }
                 }
             }
         }
