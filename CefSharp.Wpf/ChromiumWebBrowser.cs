@@ -139,6 +139,7 @@ namespace CefSharp.Wpf
 
         void InitTextures(BitmapInfo bitmapInfo)
         {
+            File.AppendAllText("Log.txt", DateTime.Now.ToShortTimeString() + "-Before init texture");
             texA = new SharpDX.Direct3D9.Texture(
                       device9.Value.Device,
                       bitmapInfo.Width,
@@ -166,6 +167,7 @@ namespace CefSharp.Wpf
             texHeight = bitmapInfo.Height;
             texWidth = bitmapInfo.Width;
             IsDirectXInitialized = true;
+            File.AppendAllText("Log.txt", DateTime.Now.ToShortTimeString() + "-After init texture");
         }
 
 
@@ -822,6 +824,8 @@ namespace CefSharp.Wpf
                 {
                     //Unable to render. Maybe context lost..
                     IsDirectXInitialized = false;
+                    File.AppendAllText("Log.txt", DateTime.Now.ToShortTimeString() + "-Error on rendering + " + e.ToString() + "---" + e.Message);
+
                 }
             }
         }
