@@ -65,7 +65,7 @@ namespace CefSharp.Wpf
 
         //DX MOD
 
-        public int DirectXError = 0;
+        public Action<string> LogAppender;
 
         public bool IsDirectXRendering = true;
 
@@ -814,7 +814,6 @@ namespace CefSharp.Wpf
                 if (IsDirectXRendering)
                 {
                     DirectXRender(bitmapInfo);
-                    DirectXError = 0;
                 }
                 else
                 {
@@ -823,17 +822,14 @@ namespace CefSharp.Wpf
             }
             catch (Exception e)
             {
+                if (LogAppender != null)
+                {
+                    LogAppender("Webbrowser : Exception on rendering " + e.ToString());
+                }
                 if (IsDirectXRendering)
                 {
                     //Unable to render. Maybe context lost..
                     IsDirectXInitialized = false;
-                    File.AppendAllText("Log.txt", DateTime.Now.ToShortTimeString() + "-Error on rendering + " + e.ToString() + "---" + e.Message);
-                    DirectXError++;
-                    if (DirectXError > 10)
-                    {
-                        IsDirectXRendering = false;
-                    }
-                    InvokeRenderAsync(bitmapInfo);
                 }
             }
         }
