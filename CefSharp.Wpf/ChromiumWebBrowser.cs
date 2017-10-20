@@ -41,6 +41,7 @@ namespace CefSharp.Wpf
         public bool PopupJustOpened { get; protected set; }
         private System.Drawing.Point popupPosition;
         private System.Drawing.Size popupSize;
+        private bool DirectXLostWarned = false;
         public BitmapSource Popup { get; protected set; }
         public BitmapSource Bitmap { get; protected set; }
 
@@ -65,7 +66,7 @@ namespace CefSharp.Wpf
 
         //DX MOD
 
-        public Action<string> LogAppender;
+        public Action<string> DirectXLost;
 
         public bool IsDirectXRendering = true;
 
@@ -822,10 +823,14 @@ namespace CefSharp.Wpf
             }
             catch (Exception e)
             {
-                if (LogAppender != null)
+                if (DirectXLost != null && DirectXLostWarned == false)
                 {
-                    LogAppender("Webbrowser : Exception on rendering " + e.ToString());
+                    DirectXLostWarned = true;
+                    DirectXLost("Webbrowser : Exception on rendering " + e.ToString());
                 }
+
+
+
                 if (IsDirectXRendering)
                 {
                     //Unable to render. Maybe context lost..
