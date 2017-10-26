@@ -1655,7 +1655,7 @@ namespace CefSharp.Wpf
 
             if (string.IsNullOrEmpty(TooltipText))
             {
-                UiThreadRunAsync(() => UpdateTooltip(null), DispatcherPriority.Render);
+               // UiThreadRunAsync(() => UpdateTooltip(null), DispatcherPriority.Render);
 
                 if (timer.IsEnabled)
                 {
@@ -2119,7 +2119,7 @@ namespace CefSharp.Wpf
         private void OnTooltipTimerTick(object sender, EventArgs e)
         {
             tooltipTimer.Stop();
-            UpdateTooltip(TooltipText);
+            //UpdateTooltip(TooltipText);
         }
 
         /// <summary>
