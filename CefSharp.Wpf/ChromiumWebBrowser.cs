@@ -42,6 +42,7 @@ namespace CefSharp.Wpf
         private System.Drawing.Point popupPosition;
         private System.Drawing.Size popupSize;
         private bool DirectXLostWarned = false;
+        private bool FirstDirectXInitialization = true;
         public BitmapSource Popup { get; protected set; }
         public BitmapSource Bitmap { get; protected set; }
 
@@ -67,6 +68,7 @@ namespace CefSharp.Wpf
         //DX MOD
 
         public Action<string> DirectXLost;
+        public Action<string> DirectXNotCreated;
 
         public bool IsDirectXRendering = true;
 
@@ -820,9 +822,15 @@ namespace CefSharp.Wpf
                 {
                     BitmapRender(bitmapInfo);
                 }
+                
             }
             catch (Exception e)
             {
+                if (DirectXNotCreated != null && FirstDirectXInitialization)
+                {
+                    DirectXNotCreated("Webbrowser : Exception on rendering " + e.ToString());
+                }
+
                 if (DirectXLost != null && DirectXLostWarned == false)
                 {
                     DirectXLostWarned = true;
@@ -837,6 +845,8 @@ namespace CefSharp.Wpf
                     IsDirectXInitialized = false;
                 }
             }
+
+            FirstDirectXInitialization = false;
         }
 
         private void BitmapRender(BitmapInfo bitmapInfo)
