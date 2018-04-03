@@ -1,4 +1,4 @@
-// Copyright © 2010-2016 The CefSharp Authors. All rights reserved.
+// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -37,8 +37,10 @@ namespace CefSharp
 
                 for each (String^ key in headers)
                 {
-                    String^ value = headers[key];
-                    result.insert(std::pair<CefString, CefString>(StringUtils::ToNative(key), StringUtils::ToNative(value)));
+                    for each(String^ value in headers->GetValues(key))
+                    {
+                        result.insert(std::pair<CefString, CefString>(StringUtils::ToNative(key), StringUtils::ToNative(value)));
+                    }
                 }
 
                 return result;
@@ -64,6 +66,7 @@ namespace CefSharp
                     item->FullPath = StringUtils::ToClr(downloadItem->GetFullPath());
                     item->Id = downloadItem->GetId();
                     item->Url = StringUtils::ToClr(downloadItem->GetURL());
+                    item->OriginalUrl = StringUtils::ToClr(downloadItem->GetOriginalUrl());
                     item->SuggestedFileName = StringUtils::ToClr(downloadItem->GetSuggestedFileName());
                     item->ContentDisposition = StringUtils::ToClr(downloadItem->GetContentDisposition());
                     item->MimeType = StringUtils::ToClr(downloadItem->GetMimeType());
@@ -85,13 +88,10 @@ namespace CefSharp
 
             static WebPluginInfo^ FromNative(CefRefPtr<CefWebPluginInfo> webPluginInfo)
             {
-                auto managedWebPluginInfo = gcnew WebPluginInfo();
-                managedWebPluginInfo->Description = StringUtils::ToClr(webPluginInfo->GetDescription());
-                managedWebPluginInfo->Name = StringUtils::ToClr(webPluginInfo->GetName());
-                managedWebPluginInfo->Path = StringUtils::ToClr(webPluginInfo->GetPath());
-                managedWebPluginInfo->Version = StringUtils::ToClr(webPluginInfo->GetVersion());
-
-                return managedWebPluginInfo;
+                return gcnew WebPluginInfo(StringUtils::ToClr(webPluginInfo->GetName()),
+                                           StringUtils::ToClr(webPluginInfo->GetDescription()),
+                                           StringUtils::ToClr(webPluginInfo->GetPath()),
+                                           StringUtils::ToClr(webPluginInfo->GetVersion()));
             }
 
             static IList<DraggableRegion>^ FromNative(const std::vector<CefDraggableRegion>& regions)

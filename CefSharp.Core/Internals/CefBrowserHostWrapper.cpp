@@ -1,4 +1,4 @@
-// Copyright © 2010-2016 The CefSharp Authors. All rights reserved.
+// Copyright Â© 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -14,23 +14,23 @@
 #include "RequestContext.h"
 #include "CefNavigationEntryVisitorAdapter.h"
 
-void CefBrowserHostWrapper::DragTargetDragEnter(IDragData^ dragData, MouseEvent^ mouseEvent, DragOperationsMask allowedOperations)
+void CefBrowserHostWrapper::DragTargetDragEnter(IDragData^ dragData, MouseEvent mouseEvent, DragOperationsMask allowedOperations)
 {
     ThrowIfDisposed();
 
     auto dragDataWrapper = static_cast<CefDragDataWrapper^>(dragData);
     dragDataWrapper->ResetFileContents(); // Recommended by documentation to reset before calling DragEnter
-    _browserHost->DragTargetDragEnter(dragDataWrapper, GetCefMouseEvent(mouseEvent), (CefBrowserHost::DragOperationsMask) allowedOperations);
+    _browserHost->DragTargetDragEnter(static_cast<CefRefPtr<CefDragData>>(dragDataWrapper), GetCefMouseEvent(mouseEvent), (CefBrowserHost::DragOperationsMask) allowedOperations);
 }
 
-void CefBrowserHostWrapper::DragTargetDragOver(MouseEvent^ mouseEvent, DragOperationsMask allowedOperations)
+void CefBrowserHostWrapper::DragTargetDragOver(MouseEvent mouseEvent, DragOperationsMask allowedOperations)
 {
     ThrowIfDisposed();
 
     _browserHost->DragTargetDragOver(GetCefMouseEvent(mouseEvent), (CefBrowserHost::DragOperationsMask) allowedOperations);
 }
 
-void CefBrowserHostWrapper::DragTargetDragDrop(MouseEvent^ mouseEvent)
+void CefBrowserHostWrapper::DragTargetDragDrop(MouseEvent mouseEvent)
 {
     ThrowIfDisposed();
 
@@ -72,15 +72,6 @@ void CefBrowserHostWrapper::Print()
     _browserHost->Print();
 }
 
-Task<bool>^ CefBrowserHostWrapper::PrintToPdfAsync(String^ path, PdfPrintSettings^ settings)
-{
-    ThrowIfDisposed();
-
-    auto printToPdfTask = gcnew TaskPrintToPdfCallback();
-    PrintToPdf(path, settings, printToPdfTask);
-    return printToPdfTask->Task;
-}
-
 void CefBrowserHostWrapper::PrintToPdf(String^ path, PdfPrintSettings^ settings, IPrintToPdfCallback^ callback)
 {
     ThrowIfDisposed();
@@ -98,6 +89,7 @@ void CefBrowserHostWrapper::PrintToPdf(String^ path, PdfPrintSettings^ settings,
         nativeSettings.margin_top = settings->MarginTop;
         nativeSettings.margin_left = settings->MarginLeft;
         nativeSettings.margin_right = settings->MarginRight;
+        nativeSettings.scale_factor = settings->ScaleFactor;
         nativeSettings.page_height = settings->PageHeight;
         nativeSettings.page_width = settings->PageWidth;
         nativeSettings.margin_type = static_cast<cef_pdf_print_margin_type_t>(settings->MarginType);
@@ -279,19 +271,33 @@ double CefBrowserHostWrapper::GetZoomLevelOnUI()
     return 0.0;	
 }
 
-void CefBrowserHostWrapper::SendMouseWheelEvent(int x, int y, int deltaX, int deltaY, CefEventFlags modifiers)
+void CefBrowserHostWrapper::SendMouseWheelEvent(MouseEvent mouseEvent, int deltaX, int deltaY)
 {
     ThrowIfDisposed();
 
     if (_browserHost.get())
     {
-        CefMouseEvent mouseEvent;
-        mouseEvent.x = x;
-        mouseEvent.y = y;
-        mouseEvent.modifiers = (uint32)modifiers;
+        CefMouseEvent m;
+        m.x = mouseEvent.X;
+        m.y = mouseEvent.Y;
+        m.modifiers = (uint32)mouseEvent.Modifiers;
 
-        _browserHost->SendMouseWheelEvent(mouseEvent, deltaX, deltaY);
+        _browserHost->SendMouseWheelEvent(m, deltaX, deltaY);
     }
+}
+
+void CefBrowserHostWrapper::SetAccessibilityState(CefState accessibilityState)
+{
+    ThrowIfDisposed();
+
+    _browserHost->SetAccessibilityState((cef_state_t)accessibilityState);
+}
+
+void CefBrowserHostWrapper::SetAutoResizeEnabled(bool enabled, Size minSize, Size maxSize)
+{
+    ThrowIfDisposed();
+
+    _browserHost->SetAutoResizeEnabled(enabled, CefSize(minSize.Width, minSize.Height), CefSize(maxSize.Width, maxSize.Height));
 }
 
 void CefBrowserHostWrapper::Invalidate(PaintElementType type)
@@ -301,29 +307,79 @@ void CefBrowserHostWrapper::Invalidate(PaintElementType type)
     _browserHost->Invalidate((CefBrowserHost::PaintElementType)type);
 }
 
-void CefBrowserHostWrapper::SendMouseClickEvent(int x, int y, MouseButtonType mouseButtonType, bool mouseUp, int clickCount, CefEventFlags modifiers)
+void CefBrowserHostWrapper::ImeSetComposition(String^ text, cli::array<CompositionUnderline>^ underlines, Nullable<Range> selectionRange)
 {
     ThrowIfDisposed();
 
-    CefMouseEvent mouseEvent;
-    mouseEvent.x = x;
-    mouseEvent.y = y;
-    mouseEvent.modifiers = (uint32)modifiers;
+    std::vector<CefCompositionUnderline> underlinesVector = std::vector<CefCompositionUnderline>();
+    CefRange range;
 
-    _browserHost->SendMouseClickEvent(mouseEvent, (CefBrowserHost::MouseButtonType) mouseButtonType, mouseUp, clickCount);
+    if (underlines != nullptr && underlines->Length > 0)
+    {
+        for each (CompositionUnderline underline in underlines)
+        {
+            auto c = CefCompositionUnderline();
+            c.range = CefRange(underline.Range.From, underline.Range.To);
+            c.color = underline.Color;
+            c.background_color = underline.BackgroundColor;
+            c.thick = (int)underline.Thick;
+            underlinesVector.push_back(c);
+        }
+    }
+
+    if (selectionRange.HasValue)
+    {
+        range = CefRange(selectionRange.Value.From, selectionRange.Value.To);
+    }
+
+    //Replacement Range is Mac OSX only
+    _browserHost->ImeSetComposition(StringUtils::ToNative(text), underlinesVector, CefRange(), range);
 }
 
-void CefBrowserHostWrapper::SendMouseMoveEvent(int x, int y, bool mouseLeave, CefEventFlags modifiers)
+void CefBrowserHostWrapper::ImeCommitText(String^ text)
 {
     ThrowIfDisposed();
 
-    CefMouseEvent mouseEvent;
-    mouseEvent.x = x;
-    mouseEvent.y = y;
+    //Range and cursor position are Mac OSX only
+    _browserHost->ImeCommitText(StringUtils::ToNative(text), CefRange(), NULL);
+}
 
-    mouseEvent.modifiers = (uint32)modifiers;
+void CefBrowserHostWrapper::ImeFinishComposingText(bool keepSelection)
+{
+    ThrowIfDisposed();
 
-    _browserHost->SendMouseMoveEvent(mouseEvent, mouseLeave);
+    _browserHost->ImeFinishComposingText(keepSelection);
+}
+
+void CefBrowserHostWrapper::ImeCancelComposition()
+{
+    ThrowIfDisposed();
+
+    _browserHost->ImeCancelComposition();
+}
+
+void CefBrowserHostWrapper::SendMouseClickEvent(MouseEvent mouseEvent, MouseButtonType mouseButtonType, bool mouseUp, int clickCount)
+{
+    ThrowIfDisposed();
+
+    CefMouseEvent m;
+    m.x = mouseEvent.X;
+    m.y = mouseEvent.Y;
+    m.modifiers = (uint32)mouseEvent.Modifiers;
+
+    _browserHost->SendMouseClickEvent(m, (CefBrowserHost::MouseButtonType) mouseButtonType, mouseUp, clickCount);
+}
+
+void CefBrowserHostWrapper::SendMouseMoveEvent(MouseEvent mouseEvent, bool mouseLeave)
+{
+    ThrowIfDisposed();
+
+    CefMouseEvent m;
+    m.x = mouseEvent.X;
+    m.y = mouseEvent.Y;
+    m.modifiers = (uint32)mouseEvent.Modifiers;
+
+    _browserHost->SendMouseMoveEvent(m, mouseLeave);
 }
 
 void CefBrowserHostWrapper::WasResized()
@@ -347,6 +403,56 @@ void CefBrowserHostWrapper::GetNavigationEntries(INavigationEntryVisitor^ visito
     auto navEntryVisitor = new CefNavigationEntryVisitorAdapter(visitor);
 
     _browserHost->GetNavigationEntries(navEntryVisitor, currentOnly);
+}
+
+NavigationEntry^ CefBrowserHostWrapper::GetVisibleNavigationEntry()
+{
+    ThrowIfDisposed();
+
+    auto entry = _browserHost->GetVisibleNavigationEntry();
+
+    NavigationEntry^ navEntry;
+    SslStatus^ sslStatus;
+
+    //TODO: This code is duplicated in CefNavigationEntryVisitor
+    //TODO: NavigationEntry is a struct and so is SslStatus, this should
+    // be reviewed as it's likely not ideal.
+    if (entry->IsValid())
+    {
+        auto time = entry->GetCompletionTime();
+        DateTime completionTime = CefTimeUtils::ConvertCefTimeToDateTime(time.GetDoubleT());
+        auto ssl = entry->GetSSLStatus();
+        X509Certificate2^ sslCertificate;
+
+        if (ssl.get())
+        {
+            auto certificate = ssl->GetX509Certificate();
+            if (certificate.get())
+            {
+                auto derEncodedCertificate = certificate->GetDEREncoded();
+                auto byteCount = derEncodedCertificate->GetSize();
+                if (byteCount > 0)
+                {
+                    auto bytes = gcnew cli::array<Byte>(byteCount);
+                    pin_ptr<Byte> src = &bytes[0]; // pin pointer to first element in arr
+
+                    derEncodedCertificate->GetData(static_cast<void*>(src), byteCount, 0);
+
+                    sslCertificate = gcnew X509Certificate2(bytes);
+                }
+            }
+            sslStatus = gcnew SslStatus(ssl->IsSecureConnection(), (CertStatus)ssl->GetCertStatus(), (SslVersion)ssl->GetSSLVersion(), (SslContentStatus)ssl->GetContentStatus(), sslCertificate);
+        }
+
+        navEntry = gcnew NavigationEntry(true, completionTime, StringUtils::ToClr(entry->GetDisplayURL()), entry->GetHttpStatusCode(), StringUtils::ToClr(entry->GetOriginalURL()), StringUtils::ToClr(entry->GetTitle()), (TransitionType)entry->GetTransitionType(), StringUtils::ToClr(entry->GetURL()), entry->HasPostData(), true, sslStatus);
+    }
+    else
+    {
+        //Invalid nav entry
+        navEntry = gcnew NavigationEntry(true, DateTime::MinValue, nullptr, -1, nullptr, nullptr, (TransitionType)-1, nullptr, false, false, sslStatus);
+    }
+
+    return navEntry;
 }
 
 void CefBrowserHostWrapper::NotifyMoveOrResizeStarted()
@@ -420,12 +526,12 @@ IRequestContext^ CefBrowserHostWrapper::RequestContext::get()
     return gcnew CefSharp::RequestContext(_browserHost->GetRequestContext());
 }
 
-CefMouseEvent CefBrowserHostWrapper::GetCefMouseEvent(MouseEvent^ mouseEvent)
+CefMouseEvent CefBrowserHostWrapper::GetCefMouseEvent(MouseEvent mouseEvent)
 {
     CefMouseEvent cefMouseEvent;
-    cefMouseEvent.x = mouseEvent->X;
-    cefMouseEvent.y = mouseEvent->Y;
-    cefMouseEvent.modifiers = (uint32)mouseEvent->Modifiers;
+    cefMouseEvent.x = mouseEvent.X;
+    cefMouseEvent.y = mouseEvent.Y;
+    cefMouseEvent.modifiers = (uint32)mouseEvent.Modifiers;
     return cefMouseEvent;
 }
 

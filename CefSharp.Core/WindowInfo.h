@@ -1,4 +1,4 @@
-// Copyright © 2010-2016 The CefSharp Authors. All rights reserved.
+// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -131,18 +131,6 @@ namespace CefSharp
             }
         }
 
-        virtual property bool TransparentPaintingEnabled
-        {
-            bool get()
-            {
-                return _windowInfo->transparent_painting_enabled == 1;
-            }
-            void set(bool transparentPaintingEnabled)
-            {
-                _windowInfo->transparent_painting_enabled = transparentPaintingEnabled;
-            }
-        }
-
         virtual property bool WindowlessRenderingEnabled
         {
             bool get()
@@ -170,9 +158,9 @@ namespace CefSharp
             _windowInfo->SetAsPopup((HWND)parentHandle.ToPointer(), StringUtils::ToNative(windowName));
         }
 
-        virtual void SetAsWindowless(IntPtr parentHandle, bool transparent)
+        virtual void SetAsWindowless(IntPtr parentHandle)
         {
-            _windowInfo->SetAsWindowless((HWND)parentHandle.ToPointer(), transparent);
+            _windowInfo->SetAsWindowless((HWND)parentHandle.ToPointer());
         }
 
         CefWindowInfo* GetWindowInfo()

@@ -1,4 +1,4 @@
-// Copyright © 2010-2016 The CefSharp Project. All rights reserved.
+// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 #pragma once
@@ -56,16 +56,31 @@ namespace CefSharp
         {
             auto channelFactory = browser->ChannelFactory;
 
-            if (channelFactory->State == CommunicationState::Opened)
+            try
             {
-                channelFactory->Close();
+                if (channelFactory->State == CommunicationState::Opened)
+                {
+                    channelFactory->Close();
+                }
+            }
+            catch (Exception^)
+            {
+                
+                channelFactory->Abort();
             }
 
             auto clientChannel = ((IClientChannel^)browser->BrowserProcess);
 
-            if (clientChannel->State == CommunicationState::Opened)
+            try
             {
-                clientChannel->Close();
+                if (clientChannel->State == CommunicationState::Opened)
+                {
+                    clientChannel->Close();
+                }
+            }
+            catch (Exception^)
+            {
+                clientChannel->Abort();
             }
 
             browser->ChannelFactory = nullptr;

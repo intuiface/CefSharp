@@ -1,4 +1,4 @@
-﻿// Copyright © 2010-2016 The CefSharp Authors. All rights reserved.
+﻿// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -13,8 +13,6 @@ namespace CefSharp.ModelBinding
     /// </summary>
     public class BindingContext
     {
-        public CultureInfo Culture { get; set; } 
-
         /// <summary>
         /// Binding destination type
         /// </summary>
@@ -39,10 +37,5 @@ namespace CefSharp.ModelBinding
         /// The incoming data fields
         /// </summary>
         public object Object { get; set; }
-
-        public BindingContext()
-        {
-            Culture = CultureInfo.InvariantCulture;
-        }
     }
 }

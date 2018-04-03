@@ -1,4 +1,4 @@
-﻿// Copyright © 2010-2016 The CefSharp Authors. All rights reserved.
+﻿// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -10,7 +10,6 @@
 #include "TypeUtils.h"
 #include "Stdafx.h"
 #include "JavascriptRootObjectWrapper.h"
-#include "Async/JavascriptAsyncMethodCallback.h"
 
 using namespace CefSharp::Internals::Async;
 using namespace System::ServiceModel;
@@ -27,6 +26,7 @@ namespace CefSharp
         MCefRefPtr<CefBrowser> _cefBrowser;
     
     internal:
+        //Frame Identifier is used as Key
         property ConcurrentDictionary<int64, JavascriptRootObjectWrapper^>^ JavascriptRootObjectWrappers;
 
     public:

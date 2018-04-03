@@ -1,4 +1,4 @@
-// Copyright © 2010-2016 The CefSharp Authors. All rights reserved.
+// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -58,6 +58,9 @@ namespace CefSharp
             if (CefSharpSettings::WcfEnabled)
             {
                 commandLine->AppendArgument(StringUtils::ToNative(CefSharpArguments::WcfEnabledArgument));
+                //ChannelId was removed in https://bitbucket.org/chromiumembedded/cef/issues/1912/notreached-in-logchannelidandcookiestores
+                //We need to know the process Id to establish WCF communication
+                commandLine->AppendArgument(StringUtils::ToNative(CefSharpArguments::WcfHostProcessIdArgument + "=" + Process::GetCurrentProcess()->Id));
             }
 
             if (_cefSettings->_cefCustomSchemes->Count > 0)
@@ -69,7 +72,10 @@ namespace CefSharp
                     argument += scheme->SchemeName + "|";
                     argument += (scheme->IsStandard ? "T" : "F") + "|";
                     argument += (scheme->IsLocal ? "T" : "F") + "|";
-                    argument += (scheme->IsDisplayIsolated ? "T" : "F") + ";";
+                    argument += (scheme->IsDisplayIsolated ? "T" : "F") + "|";
+                    argument += (scheme->IsSecure ? "T" : "F") + "|";
+                    argument += (scheme->IsCorsEnabled ? "T" : "F") + "|";
+                    argument += (scheme->IsCSPBypassing ? "T" : "F") + ";";
                 }
 
                 argument = argument->TrimEnd(';');
@@ -108,12 +114,17 @@ namespace CefSharp
             }
         }
 
-        virtual void OnRegisterCustomSchemes(CefRefPtr<CefSchemeRegistrar> registrar) OVERRIDE
+        virtual void OnRegisterCustomSchemes(CefRawPtr<CefSchemeRegistrar> registrar) OVERRIDE
         {
-            for each (CefCustomScheme^ cefCustomScheme in _cefSettings->CefCustomSchemes)
+            for each (CefCustomScheme^ scheme in _cefSettings->CefCustomSchemes)
             {
-                // TOOD: Consider adding error handling here. But where do we report any errors that may have occurred?
-                registrar->AddCustomScheme(StringUtils::ToNative(cefCustomScheme->SchemeName), cefCustomScheme->IsStandard, cefCustomScheme->IsLocal, cefCustomScheme->IsDisplayIsolated);
+                auto success = registrar->AddCustomScheme(StringUtils::ToNative(scheme->SchemeName), scheme->IsStandard, scheme->IsLocal, scheme->IsDisplayIsolated, scheme->IsSecure, scheme->IsCorsEnabled, scheme->IsCSPBypassing);
+
+                if (!success)
+                {
+                    String^ msg = "CefSchemeRegistrar::AddCustomScheme failed for schemeName:" + scheme->SchemeName;
+                    LOG(ERROR) << StringUtils::ToNative(msg).ToString();
+                }
             }
         };
 

@@ -10,7 +10,7 @@
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>The CefSharp Chromium-based browser component ('Core' and common 'Element' components, needed by both WPF and WinForms).</description>
     <tags>chrome browser</tags>
-    <copyright>Copyright © 2010-2016 The CefSharp Authors</copyright>
+    <copyright>Copyright © 2010-2017 The CefSharp Authors</copyright>
     <dependencies>
       <dependency id="cef.redist.x86" version="[$RedistVersion$]" />
       <dependency id="cef.redist.x64" version="[$RedistVersion$]" />
@@ -30,8 +30,8 @@
     <file src="..\CefSharp.Core\bin\x64\Release\CefSharp.Core.pdb" target="CefSharp\x64"/>
   
     <file src="..\CefSharp\bin\x86\Release\CefSharp.dll" target="CefSharp\x86"/>
-    <file src="..\CefSharp\bin\x64\Release\CefSharp.xml" target="CefSharp\x86"/>
-    <file src="..\CefSharp\bin\x64\Release\CefSharp.pdb" target="CefSharp\x86"/>
+    <file src="..\CefSharp\bin\x86\Release\CefSharp.xml" target="CefSharp\x86"/>
+    <file src="..\CefSharp\bin\x86\Release\CefSharp.pdb" target="CefSharp\x86"/>
   
     <file src="..\CefSharp\bin\x64\Release\CefSharp.dll" target="CefSharp\x64"/>
     <file src="..\CefSharp\bin\x64\Release\CefSharp.xml" target="CefSharp\x64"/>

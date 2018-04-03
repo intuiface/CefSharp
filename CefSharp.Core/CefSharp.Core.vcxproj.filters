@@ -62,13 +62,13 @@
     <ClCompile Include="Internals\JavascriptCallbackFactory.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Internals\CookieManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Internals\Serialization\JsObjectsSerialization.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Internals\Serialization\ObjectsSerialization.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CookieManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -142,9 +142,6 @@
     <ClInclude Include="Internals\CefTaskWrapper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="CookieAsyncWrapper.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Internals\ReportUnhandledExceptions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -158,9 +155,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Internals\CefBeforeDownloadCallbackWrapper.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Internals\CefGeolocationCallbackWrapper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Internals\CefFileDialogCallbackWrapper.h">
@@ -208,9 +202,6 @@
     <ClInclude Include="RequestContextSettings.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Internals\CookieManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Internals\Serialization\JsObjectsSerialization.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -235,9 +226,6 @@
     <ClInclude Include="Internals\CefPdfPrintCallbackWrapper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Internals\CefGetGeolocationCallbackWrapper.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Internals\CefPdfPrintCallbackWrapper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -259,6 +247,24 @@
     <ClInclude Include="Internals\CefNavigationEntryVisitorAdapter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CookieManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Internals\CefCertificateCallbackWrapper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Internals\CefRegisterCdmCallbackAdapter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Internals\CefSetCookieCallbackAdapter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Internals\CefDeleteCookiesCallbackAdapter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Internals\CefSharpBrowserWrapper.h">
@@ -270,6 +276,9 @@
     <ClInclude Include="Internals\CefSharpBrowserWrapper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Resource.rc" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

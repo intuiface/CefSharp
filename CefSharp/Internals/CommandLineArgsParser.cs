@@ -1,4 +1,4 @@
-﻿// Copyright © 2010-2016 The CefSharp Authors. All rights reserved.
+﻿// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -19,20 +19,15 @@ namespace CefSharp.Internals
 
         public static int? LocateParentProcessId(this IEnumerable<string> args)
         {
-            // Format being parsed:
-            // --channel=3828.2.1260352072\1102986608
-            // We only really care about the PID (3828) part.
-            const string channelPrefix = "--channel=";
-            var channelArgument = args.SingleOrDefault(arg => arg.StartsWith(channelPrefix));
-            if (channelArgument == null)
+            var hostProcessId = args.SingleOrDefault(arg => arg.StartsWith(CefSharpArguments.WcfHostProcessIdArgument));
+            if (hostProcessId == null)
             {
                 return null;
             }
 
-            var parentProcessId = channelArgument
-                .Substring(channelPrefix.Length)
-                .Split('.')
-                .First();
+            var parentProcessId = hostProcessId
+                .Split('=')
+                .Last();
             return int.Parse(parentProcessId);
         }
     }

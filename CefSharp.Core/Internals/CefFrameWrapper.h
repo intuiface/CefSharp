@@ -1,4 +1,4 @@
-// Copyright © 2010-2016 The CefSharp Project. All rights reserved.
+// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -173,7 +173,7 @@ namespace CefSharp
             /*--cef(optional_param=script_url)--*/
             virtual void ExecuteJavaScriptAsync(String^ code, String^ scriptUrl, int startLine);
 
-            virtual Task<JavascriptResponse^>^ EvaluateScriptAsync(String^ script, Nullable<TimeSpan> timeout);
+            virtual Task<JavascriptResponse^>^ EvaluateScriptAsync(String^ script, String^ scriptUrl, int startLine, Nullable<TimeSpan> timeout);
 
             ///
             // Returns true if this is the main (top-level) frame.

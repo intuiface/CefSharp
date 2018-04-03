@@ -1,4 +1,4 @@
-﻿// Copyright © 2010-2016 The CefSharp Authors. All rights reserved.
+﻿// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -30,6 +30,12 @@ namespace CefSharp.Internals
         public string JavascriptName { get; set; }
 
         /// <summary>
+        /// Indicate if this object bound as async
+        /// </summary>
+        [DataMember]
+        public bool IsAsync { get; set; }
+
+        /// <summary>
         /// Indicate if JavascriptName is camel case or not
         /// </summary>
         public bool CamelCaseJavascriptNames { get; set; }
@@ -52,6 +58,8 @@ namespace CefSharp.Internals
         public object Value { get; set; }
 
         public IBinder Binder { get; set; }
+
+        public IMethodInterceptor MethodInterceptor { get; set; }
 
         public JavascriptObject()
         {

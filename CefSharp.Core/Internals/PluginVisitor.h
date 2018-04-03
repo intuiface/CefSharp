@@ -1,4 +1,4 @@
-﻿// Copyright © 2010-2016 The CefSharp Authors. All rights reserved.
+﻿// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -7,59 +7,33 @@
 #include "Stdafx.h"
 #include "include/cef_web_plugin.h"
 
-using namespace CefSharp::Internals;
-using namespace System::Threading::Tasks;
-
 namespace CefSharp
 {
     private class PluginVisitor : public CefWebPluginInfoVisitor
     {
     private:
-        gcroot<TaskCompletionSource<List<Plugin>^>^> _taskCompletionSource;
-        gcroot<List<Plugin>^> _list;
+        gcroot<IWebPluginInfoVisitor^> _visitor;
 
     public:
-        PluginVisitor()
+        PluginVisitor(IWebPluginInfoVisitor^ visitor) : _visitor(visitor)
         {
-            _list = gcnew List<Plugin>();
-            _taskCompletionSource = gcnew TaskCompletionSource<List<Plugin>^>();
+            
         }
 
         ~PluginVisitor()
         {
-            //In this case Visit was likely never called, so we set result to complete the task
-            if (_list->Count == 0)
-            {
-                //Set the result on the ThreadPool so the Task continuation is not run on the CEF UI Thread
-                CefSharp::Internals::TaskExtensions::TrySetResultAsync<List<Plugin>^>(_taskCompletionSource, _list);
-            }
-
-            _list = nullptr;
-            _taskCompletionSource = nullptr;
-        }
-
-        Task<List<Plugin>^>^ GetTask()
-        {
-            return _taskCompletionSource->Task;
+            delete _visitor;
+            _visitor = nullptr;
         }
 
         virtual bool Visit(CefRefPtr<CefWebPluginInfo> info, int count, int total) OVERRIDE
         {
-            Plugin plugin;
-            plugin.Name = StringUtils::ToClr(info->GetName());
-            plugin.Description = StringUtils::ToClr(info->GetDescription());
-            plugin.Path = StringUtils::ToClr(info->GetPath());
-            plugin.Version = StringUtils::ToClr(info->GetVersion());
+            auto plugin = gcnew WebPluginInfo(StringUtils::ToClr(info->GetName()),
+                StringUtils::ToClr(info->GetDescription()),
+                StringUtils::ToClr(info->GetPath()),
+                StringUtils::ToClr(info->GetVersion()));
 
-            _list->Add(plugin);
-
-            if(count == (total - 1))
-            {
-                //Set the result on the ThreadPool so the Task continuation is not run on the CEF UI Thread
-                CefSharp::Internals::TaskExtensions::TrySetResultAsync<List<Plugin>^>(_taskCompletionSource, _list);
-            }
-
-            return true;
+            return _visitor->Visit(plugin, count, total);
         }
 
         IMPLEMENT_REFCOUNTING(PluginVisitor);

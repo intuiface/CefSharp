@@ -1,4 +1,4 @@
-﻿// Copyright © 2010-2016 The CefSharp Authors. All rights reserved.
+﻿// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -16,6 +16,12 @@ namespace CefSharp
     {
     private:
         CefRequestContextSettings* _settings;
+
+    internal:
+        operator CefRequestContextSettings()
+        {
+            return *_settings;
+        }
 
     public:
         /// <summary>
@@ -101,11 +107,6 @@ namespace CefSharp
         {
             bool get() { return _settings->ignore_certificate_errors == 1; }
             void set(bool value) { _settings->ignore_certificate_errors = value; }
-        }
-
-        operator CefRequestContextSettings()
-        {
-            return *_settings;
         }
     };
 }

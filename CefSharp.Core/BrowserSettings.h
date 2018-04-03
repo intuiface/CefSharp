@@ -1,4 +1,4 @@
-﻿// Copyright © 2010-2016 The CefSharp Authors. All rights reserved.
+﻿// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -20,20 +20,20 @@ namespace CefSharp
     internal:
         CefBrowserSettings* _browserSettings;
 
-    public:
-        /// <summary>
-        /// Default Constructor
-        /// </summary>
-        BrowserSettings() : _browserSettings(new CefBrowserSettings())
-        {
-        }
-
         /// <summary>
         /// Internal Constructor
         /// </summary>
         BrowserSettings(CefBrowserSettings* browserSettings)
         {
             _browserSettings = browserSettings;
+        }
+
+    public:
+        /// <summary>
+        /// Default Constructor
+        /// </summary>
+        BrowserSettings() : _browserSettings(new CefBrowserSettings())
+        {
         }
 
         !BrowserSettings()
@@ -167,17 +167,6 @@ namespace CefSharp
         }
 
         /// <summary>
-        /// Controls whether JavaScript can be used for opening windows. Also
-        /// configurable using the "disable-javascript-open-windows" command-line
-        /// switch.
-        /// </summary>
-        virtual property CefState JavascriptOpenWindows
-        {
-            CefState get() { return (CefState)_browserSettings->javascript_open_windows; }
-            void set(CefState value) { _browserSettings->javascript_open_windows = (cef_state_t)value; }
-        }
-
-        /// <summary>
         /// Controls whether JavaScript can be used to close windows that were not
         /// opened via JavaScript. JavaScript can still be used to close windows that
         /// were opened via JavaScript. Also configurable using the
@@ -209,16 +198,6 @@ namespace CefSharp
         {
             CefState get() { return (CefState)_browserSettings->javascript_dom_paste; }
             void set(CefState value) { _browserSettings->javascript_dom_paste = (cef_state_t)value; }
-        }
-
-        /// <summary>
-        /// Controls whether the caret position will be drawn. Also configurable using
-        /// the "enable-caret-browsing" command-line switch.
-        /// </summary>
-        virtual property CefState CaretBrowsing
-        {
-            CefState get() { return (CefState)_browserSettings->caret_browsing; }
-            void set(CefState value) { _browserSettings->caret_browsing = (cef_state_t)value; }
         }
 
         /// <summary>
@@ -349,7 +328,7 @@ namespace CefSharp
         /// <summary>
         /// Opaque background color used for the browser before a document is loaded
         /// and when no document color is specified. By default the background color
-        /// will be the same as CefSettings.background_color. Only the RGB compontents
+        /// will be the same as CefSettings.BackgroundColor. Only the RGB compontents
         /// of the specified value will be used. The alpha component must greater than
         /// 0 to enable use of the background color but will be otherwise ignored.
         /// </summary>
@@ -385,11 +364,5 @@ namespace CefSharp
             int get() { return _browserSettings->windowless_frame_rate; }
             void set(int value) { _browserSettings->windowless_frame_rate = value; }
         }		
-
-        /// <summary>
-        /// When the WPF/OffScreen browser is created, specify if the background supports
-        /// transparency
-        /// </summary>
-        property Nullable<bool> OffScreenTransparentBackground;
     };
 }

@@ -1,16 +1,18 @@
-﻿// Copyright © 2010-2016 The CefSharp Authors. All rights reserved.
+﻿// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
 using System.Drawing;
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Collections.Generic;
 using CefSharp.Example;
+using CefSharp.Example.Handlers;
 using CefSharp.Wpf.Example.Handlers;
-using CefSharp.ModelBinding;
+using CefSharp.Wpf.Example.ViewModels;
+using System.IO;
+using CefSharp.Example.ModelBinding;
+using System.Diagnostics;
 
 namespace CefSharp.Wpf.Example.Views
 {
@@ -24,15 +26,77 @@ namespace CefSharp.Wpf.Example.Views
             InitializeComponent();
 
             browser.RequestHandler = new RequestHandler();
-            browser.RegisterJsObject("bound", new BoundObject(), BindingOptions.DefaultBinder);
-            browser.RegisterAsyncJsObject("boundAsync", new AsyncBoundObject());
-            // Enable touch scrolling - once properly tested this will likely become the default
-            //browser.IsManipulationEnabled = true;
 
+            //See https://github.com/cefsharp/CefSharp/issues/2246 for details on the two different binding options
+            if(CefSharpSettings.LegacyJavascriptBindingEnabled)
+            {
+                browser.RegisterJsObject("bound", new BoundObject(), options: BindingOptions.DefaultBinder);
+            }
+            else
+            {
+                //Objects can still be pre registered, they can also be registered when required, see ResolveObject below
+                //browser.JavascriptObjectRepository.Register("bound", new BoundObject(), isAsync:false, options: BindingOptions.DefaultBinder);
+            }
+
+            var bindingOptions = new BindingOptions() 
+            {
+                Binder = BindingOptions.DefaultBinder.Binder,
+                MethodInterceptor = new MethodInterceptorLogger() // intercept .net methods calls from js and log it
+            };
+
+            //See https://github.com/cefsharp/CefSharp/issues/2246 for details on the two different binding options
+            if(CefSharpSettings.LegacyJavascriptBindingEnabled)
+            {
+                browser.RegisterAsyncJsObject("boundAsync", new AsyncBoundObject(), options: bindingOptions);
+            }
+            else
+            {
+                //Objects can still be pre registered, they can also be registered when required, see ResolveObject below
+                //browser.JavascriptObjectRepository.Register("boundAsync", new AsyncBoundObject(), isAsync: true, options: bindingOptions);
+            }
+
+            //To use the ResolveObject below and bind an object with isAsync:false we must set CefSharpSettings.WcfEnabled = true before
+            //the browser is initialized.
+            CefSharpSettings.WcfEnabled = true;
+
+            //If you call CefSharp.BindObjectAsync in javascript and pass in the name of an object which is not yet
+            //bound, then ResolveObject will be called, you can then register it
+            browser.JavascriptObjectRepository.ResolveObject += (sender, e) =>
+            {
+                var repo = e.ObjectRepository;
+                if (e.ObjectName == "boundAsync2")
+                {
+                    repo.Register("boundAsync2", new AsyncBoundObject(), isAsync: true, options: bindingOptions);
+                }
+                else if(e.ObjectName == "bound")
+                { 
+                    browser.JavascriptObjectRepository.Register("bound", new BoundObject(), isAsync: false, options: BindingOptions.DefaultBinder);
+                }
+                else if( e.ObjectName == "boundAsync")
+                { 
+                    browser.JavascriptObjectRepository.Register("boundAsync", new AsyncBoundObject(), isAsync: true, options: bindingOptions);
+                }
+            };
+
+            browser.JavascriptObjectRepository.ObjectBoundInJavascript += (sender, e) =>
+            {
+                var name = e.ObjectName;
+
+                Debug.WriteLine($"Object {e.ObjectName} was bound successfully.");
+            };           
+
+            browser.DisplayHandler = new DisplayHandler();
             browser.LifeSpanHandler = new LifespanHandler();
             browser.MenuHandler = new MenuHandler();
-            browser.GeolocationHandler = new GeolocationHandler();
-            browser.DownloadHandler = new DownloadHandler();
+            var downloadHandler = new DownloadHandler();
+            downloadHandler.OnBeforeDownloadFired += OnBeforeDownloadFired;
+            downloadHandler.OnDownloadUpdatedFired += OnDownloadUpdatedFired;
+            browser.DownloadHandler = downloadHandler;
+
+            //Read an embedded bitmap into a memory stream then register it as a resource you can then load custom://cefsharp/images/beach.jpg
+            var beachImageStream = new MemoryStream();
+            CefSharp.Example.Properties.Resources.beach.Save(beachImageStream, System.Drawing.Imaging.ImageFormat.Jpeg);
+            browser.RegisterResourceHandler(CefExample.BaseUrl + "/images/beach.jpg", beachImageStream, ResourceHandler.GetMimeType(".jpg"));
             
             var dragHandler = new DragHandler();
             dragHandler.RegionsChanged += OnDragHandlerRegionsChanged;
@@ -40,10 +104,20 @@ namespace CefSharp.Wpf.Example.Views
             browser.DragHandler = dragHandler;
             //browser.ResourceHandlerFactory = new InMemorySchemeAndResourceHandlerFactory();
             //You can specify a custom RequestContext to share settings amount groups of ChromiumWebBrowsers
-            //Also this is now the only way to access OnBeforePluginLoad - need to implement IPluginHandler
-            //browser.RequestContext = new RequestContext(new PluginHandler());
-            
+            //Also this is now the only way to access OnBeforePluginLoad - need to implement IRequestContextHandler
+            //browser.RequestContext = new RequestContext(new RequestContextHandler());
+            //NOTE - This is very important for this example as the default page will not load otherwise
             //browser.RequestContext.RegisterSchemeHandlerFactory(CefSharpSchemeHandlerFactory.SchemeName, null, new CefSharpSchemeHandlerFactory());
+
+            //You can start setting preferences on a RequestContext that you created straight away, still needs to be called on the CEF UI thread.
+            //Cef.UIThreadTaskFactory.StartNew(delegate
+            //{
+            //    string errorMessage;
+            //    //Use this to check that settings preferences are working in your code
+                
+            //    var success = browser.RequestContext.SetPreference("webkit.webprefs.minimum_font_size", 24, out errorMessage);
+            //});             
+            
             browser.RenderProcessMessageHandler = new RenderProcessMessageHandler();
             
             browser.LoadError += (sender, args) =>
@@ -73,6 +147,26 @@ namespace CefSharp.Wpf.Example.Views
             };
 
             CefExample.RegisterTestResources(browser);
+        }
+
+        private void OnBeforeDownloadFired(object sender, DownloadItem e)
+        {
+            this.UpdateDownloadAction("OnBeforeDownload", e);
+        }
+
+        private void OnDownloadUpdatedFired(object sender, DownloadItem e)
+        {
+            this.UpdateDownloadAction("OnDownloadUpdated", e);
+        }
+
+        private void UpdateDownloadAction(string downloadAction, DownloadItem downloadItem)
+        {
+            this.Dispatcher.InvokeAsync(() =>
+            {
+                var viewModel = (BrowserTabViewModel)this.DataContext;
+                viewModel.LastDownloadAction = downloadAction;
+                viewModel.DownloadItem = downloadItem;
+            });
         }
 
         private void OnBrowserMouseLeftButtonDown(object sender, MouseButtonEventArgs e)

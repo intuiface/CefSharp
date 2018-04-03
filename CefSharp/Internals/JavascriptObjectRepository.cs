@@ -1,4 +1,4 @@
-﻿// Copyright © 2010-2016 The CefSharp Authors. All rights reserved.
+﻿// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -8,6 +8,8 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using CefSharp.ModelBinding;
+using CefSharp.Event;
+using System.Threading.Tasks;
 
 namespace CefSharp.Internals
 {
@@ -28,9 +30,14 @@ namespace CefSharp.Internals
     /// All of the registered objects are tracked via meta-data for the objects 
     /// expressed starting with the JavaScriptObject type.
     /// </summary>
-    public class JavascriptObjectRepository
+    public class JavascriptObjectRepository : IJavascriptObjectRepository
     {
+        public const string AllObjects = "All";
+
         private static long lastId;
+
+        public event EventHandler<JavascriptBindingEventArgs> ResolveObject;
+        public event EventHandler<JavascriptBindingEventArgs> ObjectBoundInJavascript;		
 
         /// <summary>
         /// A hash from assigned object ids to the objects,
@@ -40,25 +47,74 @@ namespace CefSharp.Internals
         private readonly Dictionary<long, JavascriptObject> objects = new Dictionary<long, JavascriptObject>();
 
         /// <summary>
-        /// This is the root of the objects that get serialized to the child process.
+        /// Has the browser this repository is associated with been initilized (set in OnAfterCreated)
         /// </summary>
-        public JavascriptRootObject RootObject { get; private set; }
-        
-        /// <summary>
-        /// This is the root of the objects that get serialized to the child
-        /// process with cef ipc serialization (wcf not required).
-        /// </summary>
-        public JavascriptRootObject AsyncRootObject { get; private set; }
+        public bool IsBrowserInitialized { get; set; }
 
-        public JavascriptObjectRepository()
+        public void Dispose()
         {
-            RootObject = new JavascriptRootObject();
-            AsyncRootObject = new JavascriptRootObject();
+            ResolveObject = null;
         }
 
         public bool HasBoundObjects
         {
-            get { return RootObject.MemberObjects.Count > 0 || AsyncRootObject.MemberObjects.Count > 0; }
+            get { return objects.Count > 0; }
+        }
+
+        public bool IsBound(string name)
+        {
+            return objects.Values.Any(x => x.Name == name); 
+        }
+
+        public List<JavascriptObject> GetObjects(List<string> names = null)
+        {
+            //If there are no objects names or the count is 0 then we will raise
+            //the resolve event then return all objects that are registered,
+            //we'll only perform checking if object(s) of specific name is requested.
+            var getAllObjects = names == null || names.Count == 0;
+            if (getAllObjects)
+            {
+                RaiseResolveObjectEvent(AllObjects);
+
+                return objects.Values.ToList();
+            }
+
+            foreach (var name in names)
+            {
+                if (!IsBound(name))
+                {
+                    RaiseResolveObjectEvent(name);
+                }
+            }
+
+            var objectsByName = objects.Values.Where(x => names.Contains(x.JavascriptName)).ToList();
+
+            //TODO: JSB Add another event that signals when no object matching a name
+            //in the list was provided.
+            return objectsByName;
+        }
+
+
+        public void ObjectsBound(List<string> names)
+        {
+            //TODO: JSB Should this be a single event invocation or
+            // one per object that was bound??? (Currently one per object)
+            
+            //Execute on Threadpool so we don't unnessicarily block the CEF IO thread
+            var handler = ObjectBoundInJavascript;
+            if(handler != null)
+            { 
+                Task.Run(() =>
+                {
+                    foreach (var name in names)
+                    {
+                        if (handler != null)
+                        {
+                            handler(this, new JavascriptBindingEventArgs(this, name));
+                        }
+                    }
+                });			
+            }
         }
 
         private JavascriptObject CreateJavascriptObject(bool camelCaseJavascriptNames)
@@ -71,28 +127,37 @@ namespace CefSharp.Internals
             return result;
         }
 
-        public void RegisterAsync(string name, object value, BindingOptions options)
+        public void Register(string name, object value, bool isAsync, BindingOptions options)
         {
-            AsyncRootObject.MemberObjects.Add(CreateInternal(name, value, analyseProperties: false, options: options));
-        }
+            //Enable WCF if not already enabled - can only be done before the browser has been initliazed
+            //if done after the subprocess won't be WCF enabled it we'll have to throw an exception
+            if (!IsBrowserInitialized && !isAsync)
+            { 
+                CefSharpSettings.WcfEnabled = true;
+            }
 
-        public void Register(string name, object value, BindingOptions options)
-        {
-            RootObject.MemberObjects.Add(CreateInternal(name, value, analyseProperties: true, options: options));
-        }
+            if (!CefSharpSettings.WcfEnabled && !isAsync)
+            {
+                throw new InvalidOperationException(@"To enable synchronous JS bindings set WcfEnabled true in CefSharpSettings before you create
+                                                    your ChromiumWebBrowser instances.");
+            }
 
-        private JavascriptObject CreateInternal(string name, object value, bool analyseProperties, BindingOptions options)
-        {
+            //Validation name is unique
+            if(objects.Values.Count(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)) > 0)
+            {
+                throw new ArgumentException("Object already bound with name:" + name , name);
+            }
+
             var camelCaseJavascriptNames = options == null ? true : options.CamelCaseJavascriptNames;
             var jsObject = CreateJavascriptObject(camelCaseJavascriptNames);
             jsObject.Value = value;
             jsObject.Name = name;
             jsObject.JavascriptName = name;
+            jsObject.IsAsync = isAsync;
             jsObject.Binder = options == null ? null : options.Binder;
+            jsObject.MethodInterceptor = options == null ? null : options.MethodInterceptor;
 
-            AnalyseObjectForBinding(jsObject, analyseMethods: true, analyseProperties: analyseProperties, readPropertyValue: false, camelCaseJavascriptNames: camelCaseJavascriptNames);
-
-            return jsObject;
+            AnalyseObjectForBinding(jsObject, analyseMethods: true, analyseProperties: !isAsync, readPropertyValue: false, camelCaseJavascriptNames: camelCaseJavascriptNames);
         }
 
         public bool TryCallMethod(long objectId, string name, object[] parameters, out object result, out string exception)
@@ -171,30 +236,40 @@ namespace CefSharp.Internals
                         { 
                             if(parameters[i] != null)
                             { 
-                                var paramType = method.Parameters[i].Type;
-
-                                if(parameters[i].GetType() == typeof(Dictionary<string, object>))
+                                var paramExpectedType = method.Parameters[i].Type;
+                                var paramType = parameters[i].GetType();
+                                if (typeof(IDictionary<string, object>).IsAssignableFrom(paramType))
                                 {
-                                    var dictionary = (Dictionary<string, object>)parameters[i];
-                                    parameters[i] = obj.Binder.Bind(dictionary, paramType);
+                                    var dictionary = (IDictionary<string, object>)parameters[i];
+                                    parameters[i] = obj.Binder.Bind(dictionary, paramExpectedType);
                                 }
-                                else if (parameters[i].GetType() == typeof(List<object>))
+                                else if (typeof(IList<object>).IsAssignableFrom(paramType))
                                 {
-                                    var list = (List<object>)parameters[i];
-                                    parameters[i] = obj.Binder.Bind(list, paramType);
+                                    var list = (IList<object>)parameters[i];
+                                    parameters[i] = obj.Binder.Bind(list, paramExpectedType);
                                 }
                             }
                         }
                     }
 
-                    result = method.Function(obj.Value, parameters);
+                    if (obj.MethodInterceptor == null) 
+                    {
+                        result = method.Function(obj.Value, parameters);
+                    }
+                    else 
+                    {
+                        result = obj.MethodInterceptor.Intercept(() => method.Function(obj.Value, parameters), method.ManagedName);
+                    }
                 }
                 catch (Exception e)
                 {
-                    throw new InvalidOperationException("Could not execute method: " + name + "(" + String.Join(", ", parameters) + ")" + " - Missing Parameters: " + missingParams, e);
+                    throw new InvalidOperationException("Could not execute method: " + name + "(" + String.Join(", ", parameters) + ") " + (missingParams > 0 ? "- Missing Parameters: " + missingParams : ""), e);
                 }
 
-                if(result != null && IsComplexType(result.GetType()))
+                //For sync binding with methods that return a complex property we create a new JavascriptObject
+                //TODO: Fix the memory leak, every call to a method that returns an object will create a new
+                //JavascriptObject and they are never released
+                if(!obj.IsAsync && result != null && IsComplexType(result.GetType()))
                 {
                     var jsObject = CreateJavascriptObject(obj.CamelCaseJavascriptNames);
                     jsObject.Value = result;
@@ -286,10 +361,10 @@ namespace CefSharp.Internals
         /// </summary>
         /// <param name="obj">Javascript object</param>
         /// <param name="analyseMethods">Analyse methods for inclusion in metadata model</param>
+        /// <param name="analyseProperties">Analyse properties for inclusion in metadata model</param>
         /// <param name="readPropertyValue">When analysis is done on a property, if true then get it's value for transmission over WCF</param>
         /// <param name="camelCaseJavascriptNames">camel case the javascript names of properties/methods</param>
-        /// <param name="analyseProperties">Analyse properties for binding</param>
-        private void AnalyseObjectForBinding(JavascriptObject obj, bool analyseMethods, bool readPropertyValue, bool camelCaseJavascriptNames, bool analyseProperties)
+        private void AnalyseObjectForBinding(JavascriptObject obj, bool analyseMethods, bool analyseProperties, bool readPropertyValue, bool camelCaseJavascriptNames)
         {
             if (obj.Value == null)
             {
@@ -321,7 +396,12 @@ namespace CefSharp.Internals
             {
                 foreach (var propertyInfo in type.GetProperties(BindingFlags.Instance | BindingFlags.Public).Where(p => !p.IsSpecialName))
                 {
-                    if (propertyInfo.PropertyType == typeof (Type) || Attribute.IsDefined(propertyInfo, typeof (JavascriptIgnoreAttribute)))
+                    //https://msdn.microsoft.com/en-us/library/system.reflection.propertyinfo.getindexparameters(v=vs.110).aspx
+                    //An array of type ParameterInfo containing the parameters for the indexes. If the property is not indexed, the array has 0 (zero) elements.
+                    //According to MSDN array has zero elements when it's not an indexer, so in theory no null check is required
+                    var isIndexer = propertyInfo.GetIndexParameters().Length > 0;
+                    var hasIgnoreAttribute = Attribute.IsDefined(propertyInfo, typeof (JavascriptIgnoreAttribute));
+                    if (propertyInfo.PropertyType == typeof (Type) || isIndexer || hasIgnoreAttribute)
                     {
                         continue;
                     }
@@ -335,7 +415,7 @@ namespace CefSharp.Internals
                         jsObject.Value = jsProperty.GetValue(obj.Value);
                         jsProperty.JsObject = jsObject;
 
-                        AnalyseObjectForBinding(jsProperty.JsObject, analyseMethods, readPropertyValue, camelCaseJavascriptNames, true);
+                        AnalyseObjectForBinding(jsProperty.JsObject, analyseMethods, analyseProperties: true, readPropertyValue: readPropertyValue, camelCaseJavascriptNames: camelCaseJavascriptNames);
                     }
                     else if (readPropertyValue)
                     {
@@ -343,6 +423,16 @@ namespace CefSharp.Internals
                     }
                     obj.Properties.Add(jsProperty);
                 }
+            }
+        }
+
+        private void RaiseResolveObjectEvent(string name)
+        {
+            var handler = ResolveObject;
+
+            if(handler != null)
+            {
+                handler(this, new JavascriptBindingEventArgs(this, name));
             }
         }
 
@@ -397,7 +487,12 @@ namespace CefSharp.Internals
                 baseType = Nullable.GetUnderlyingType(type);
             }
 
-            if (baseType == null || baseType.Namespace.StartsWith("System"))
+            if (baseType == null || baseType.IsArray || baseType.Namespace.StartsWith("System"))
+            {
+                return false;
+            }
+
+            if (baseType.IsValueType && !baseType.IsPrimitive && !baseType.IsEnum)
             {
                 return false;
             }

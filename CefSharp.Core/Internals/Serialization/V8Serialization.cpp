@@ -1,4 +1,4 @@
-// Copyright © 2010-2016 The CefSharp Authors. All rights reserved.
+// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -111,7 +111,20 @@ namespace CefSharp
                     }
                     list->SetList(index, subList);
                 }
-                else if (type->IsValueType && !type->IsPrimitive && !type->IsEnum)
+                // Serialize dictionary to CefDictionary (key,value pairs)
+                else if (System::Collections::IDictionary::typeid->IsAssignableFrom(type))
+                {
+                    auto subDict = CefDictionaryValue::Create();
+                    auto dict = (System::Collections::IDictionary^) obj;
+                    for each (System::Collections::DictionaryEntry kvp in dict)
+                    {
+                        auto fieldName = StringUtils::ToNative(Convert::ToString(kvp.Key));
+                        SerializeV8SimpleObject(subDict, fieldName, kvp.Value, seen);
+                    }
+                    list->SetDictionary(index, subDict);
+                }
+                // Serialize class/structs to CefDictionary (key,value pairs)
+                else if (!type->IsPrimitive && !type->IsEnum)
                 {
                     auto fields = type->GetFields();
                     auto subDict = CefDictionaryValue::Create();
@@ -122,11 +135,20 @@ namespace CefSharp
                         auto fieldValue = fields[i]->GetValue(obj);
                         SerializeV8SimpleObject(subDict, fieldName, fieldValue, seen);
                     }
+
+                    auto properties = type->GetProperties();
+
+                    for (int i = 0; i < properties->Length; i++)
+                    {
+                        auto propertyName = StringUtils::ToNative(properties[i]->Name);
+                        auto propertyValue = properties[i]->GetValue(obj);
+                        SerializeV8SimpleObject(subDict, propertyName, propertyValue, seen);
+                    }
                     list->SetDictionary(index, subDict);
                 } 
                 else
                 {
-                    throw gcnew NotSupportedException("Complex types cannot be serialized to Cef lists");
+                    throw gcnew NotSupportedException("Unable to serialize Type");
                 }
 
                 seen->Pop();

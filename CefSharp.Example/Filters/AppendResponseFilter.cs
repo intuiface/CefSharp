@@ -1,4 +1,4 @@
-﻿// Copyright © 2010-2016 The CefSharp Authors. All rights reserved.
+﻿// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -49,7 +49,7 @@ namespace CefSharp.Example.Filters
                 dataIn.CopyTo(dataOut);
             }
 
-            // If we have overflow data then write it.
+            // If we have overflow data and remaining space in the buffer then write the overflow.
             if (overflow.Count > 0)
             {
                 // Number of bytes remaining in the output buffer.

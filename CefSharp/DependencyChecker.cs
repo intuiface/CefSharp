@@ -1,4 +1,4 @@
-﻿// Copyright © 2010-2016 The CefSharp Authors. All rights reserved.
+﻿// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -57,7 +57,9 @@ namespace CefSharp
             // Note: Without these components HTML5 accelerated content like 2D canvas, 3D CSS and WebGL will not function.
             "libEGL.dll",
             "libGLESv2.dll",
-            "d3dcompiler_47.dll"
+            "d3dcompiler_47.dll",
+            //Crashpad support
+            "chrome_elf.dll"
         };
 
         /// <summary>

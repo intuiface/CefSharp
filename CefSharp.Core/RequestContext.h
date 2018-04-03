@@ -1,4 +1,4 @@
-// Copyright © 2010-2016 The CefSharp Authors. All rights reserved.
+// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -10,7 +10,7 @@
 #include "SchemeHandlerFactoryWrapper.h"
 #include "RequestContextHandler.h"
 #include "Internals\CefCompletionCallbackAdapter.h"
-#include "Internals\CookieManager.h"
+#include "CookieManager.h"
 #include "Internals\CefWrapper.h"
 #include "Internals\CefResolveCallbackAdapter.h"
 
@@ -44,6 +44,15 @@ namespace CefSharp
             _settings = nullptr;
         }
 
+        operator CefRefPtr<CefRequestContext>()
+        {
+            if (this == nullptr)
+            {
+                return NULL;
+            }
+            return _requestContext.get();
+        }
+
     public:
         RequestContext()
         {
@@ -56,15 +65,15 @@ namespace CefSharp
             _requestContext = CefRequestContext::CreateContext(settings, NULL);
         }
 
-        RequestContext(IPluginHandler^ pluginHandler)
+        RequestContext(IRequestContextHandler^ requestContextHandler)
         {
             CefRequestContextSettings settings;
-            _requestContext = CefRequestContext::CreateContext(settings, new RequestContextHandler(pluginHandler));
+            _requestContext = CefRequestContext::CreateContext(settings, new RequestContextHandler(requestContextHandler));
         }
 
-        RequestContext(RequestContextSettings^ settings, IPluginHandler^ pluginHandler) : _settings(settings)
+        RequestContext(RequestContextSettings^ settings, IRequestContextHandler^ requestContextHandler) : _settings(settings)
         {
-            _requestContext = CefRequestContext::CreateContext(settings, new RequestContextHandler(pluginHandler));
+            _requestContext = CefRequestContext::CreateContext(settings, new RequestContextHandler(requestContextHandler));
         }
 
         !RequestContext()
@@ -79,6 +88,22 @@ namespace CefSharp
             delete _settings;
 
             _disposed = true;
+        }
+
+        /// <summary>
+        /// Creates a new context object that shares storage with other and uses an
+        /// optional handler.
+        /// </summary>
+        /// <param name="other">shares storage with this RequestContext</param>
+        /// <param name="requestContextHandler">optional requestContext handler</param>
+        /// <returns>Returns a nre RequestContext</returns>
+        static IRequestContext^ CreateContext(IRequestContext^ other, IRequestContextHandler^ requestContextHandler)
+        {
+            auto otherRequestContext = static_cast<RequestContext^>(other);
+            CefRefPtr<CefRequestContextHandler> handler = requestContextHandler == nullptr ? NULL : new RequestContextHandler(requestContextHandler);
+
+            auto newContext = CefRequestContext::CreateContext(otherRequestContext, handler);
+            return gcnew RequestContext(newContext);
         }
 
         /// <summary>
@@ -351,12 +376,12 @@ namespace CefSharp
         /// Attempts to resolve origin to a list of associated IP addresses.
         /// </summary>
         /// <param name="origin">host name to resolve</param>
-        /// <return>A task that represents the Resoolve Host operation. The value of the TResult parameter contains ResolveCallbackResult.</return>
+        /// <returns>A task that represents the Resoolve Host operation. The value of the TResult parameter contains ResolveCallbackResult.</returns>
         virtual Task<ResolveCallbackResult>^ ResolveHostAsync(Uri^ origin)
         {
             ThrowIfDisposed();
 
-            auto callback = gcnew TaskResolveCallbackHandler();
+            auto callback = gcnew TaskResolveCallback();
 
             CefRefPtr<CefResolveCallback> callbackWrapper = new CefResolveCallbackAdapter(callback);
 
@@ -385,15 +410,6 @@ namespace CefSharp
             resolvedIpAddresses = StringUtils::ToClr(addresses);
 
             return (CefErrorCode)errorCode;
-        }
-
-        operator CefRefPtr<CefRequestContext>()
-        {
-            if(this == nullptr)
-            {
-                return NULL;
-            }
-            return _requestContext.get();
         }
     };
 }

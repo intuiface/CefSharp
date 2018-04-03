@@ -1,4 +1,4 @@
-﻿// Copyright © 2010-2016 The CefSharp Authors. All rights reserved.
+﻿// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -40,6 +40,7 @@ namespace CefSharp
             }
 
         public:
+            virtual property UrlRequestFlags Flags { UrlRequestFlags get(); void set(UrlRequestFlags flags); }
             virtual property String^ Url { String^ get(); void set(String^ url); }
             virtual property String^ Method { String^ get(); void set(String^ method); }
             virtual property UInt64 Identifier { UInt64 get(); }

@@ -1,4 +1,4 @@
-﻿// Copyright © 2010-2016 The CefSharp Authors. All rights reserved.
+﻿// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -40,9 +40,6 @@ namespace CefSharp
 
             //Automatically discovered and load a system-wide installation of Pepper Flash.
             _cefCommandLineArgs->Add("enable-system-flash", "1");
-
-            //Temp workaround for https://github.com/cefsharp/CefSharp/issues/1203
-            _cefCommandLineArgs->Add("process-per-tab", "1");
 
             _focusedNodeChangedEnabled = false;
         }
@@ -390,20 +387,23 @@ namespace CefSharp
         }
 
         /// <summary>
+        /// Set command line argument to disable GPU Acceleration, this will disable WebGL.
+        /// </summary>
+        void DisableGpuAcceleration()
+        {
+            if (!_cefCommandLineArgs->ContainsKey("disable-gpu"))
+            {
+                _cefCommandLineArgs->Add("disable-gpu", "1");
+            }
+        }
+
+        /// <summary>
         /// Set command line arguments for best OSR (Offscreen and WPF) Rendering performance
         /// This will disable WebGL, look at the source to determine which flags best suite
         /// your requirements.
         /// </summary>
         void SetOffScreenRenderingBestPerformanceArgs()
         {
-            // If the PDF extension is enabled then cc Surfaces must be disabled for
-            // PDFs to render correctly.
-            // See https://bitbucket.org/chromiumembedded/cef/issues/1689 for details.
-            if (!_cefCommandLineArgs->ContainsKey("disable-surfaces"))
-            {
-                _cefCommandLineArgs->Add("disable-surfaces", "1");
-            }
-
             // Use software rendering and compositing (disable GPU) for increased FPS
             // and decreased CPU usage. This will also disable WebGL so remove these
             // switches if you need that capability.
@@ -428,18 +428,6 @@ namespace CefSharp
             if (!_cefCommandLineArgs->ContainsKey("enable-begin-frame-scheduling"))
             {
                 _cefCommandLineArgs->Add("enable-begin-frame-scheduling", "1");
-            }
-        }
-
-        /// <summary>
-        /// Disable Surfaces so internal PDF viewer works for OSR
-        /// https://bitbucket.org/chromiumembedded/cef/issues/1689
-        /// </summary>
-        void EnableInternalPdfViewerOffScreen()
-        {
-            if (!_cefCommandLineArgs->ContainsKey("disable-surfaces"))
-            {
-                _cefCommandLineArgs->Add("disable-surfaces", "1");
             }
         }
     };

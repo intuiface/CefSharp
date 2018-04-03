@@ -1,4 +1,4 @@
-﻿// Copyright © 2010-2016 The CefSharp Authors. All rights reserved.
+﻿// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -8,6 +8,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using CefSharp;
 using CefSharp.Example;
 using CefSharp.Example.Handlers;
 using CefSharp.Internals;
@@ -18,7 +19,7 @@ namespace CefSharp.OffScreen.Example
     {
         private const string TestUrl = "https://www.google.com/";
 
-        public static void Main(string[] args)
+        public static int Main(string[] args)
         {
             Console.WriteLine("This example application will load {0}, take a screenshot, and save it to your desktop.", TestUrl);
             Console.WriteLine("You may see a lot of Chromium debugging output, please wait...");
@@ -39,6 +40,9 @@ namespace CefSharp.OffScreen.Example
             // Clean up Chromium objects.  You need to call this in your application otherwise
             // you will get a crash when closing.
             Cef.Shutdown();
+
+            //Success
+            return 0;
         }
 
         private static async void MainAsync(string cachePath, double zoomLevel)
@@ -82,6 +86,17 @@ namespace CefSharp.OffScreen.Example
                 // For Google.com pre-pupulate the search text box
                 await browser.EvaluateScriptAsync("document.getElementById('lst-ib').value = 'CefSharp Was Here!'");
 
+                //Example using SendKeyEvent for input instead of javascript
+                //var browserHost = browser.GetBrowserHost();
+                //var inputString = "CefSharp Was Here!";
+                //foreach(var c in inputString)
+                //{
+                //	browserHost.SendKeyEvent(new KeyEvent { WindowsKeyCode = c, Type = KeyEventType.Char });
+                //}
+
+                ////Give the browser a little time to finish drawing our SendKeyEvent input
+                //await Task.Delay(100);
+
                 // Wait for the screenshot to be taken,
                 // if one exists ignore it, wait for a new one to make sure we have the most up to date
                 await browser.ScreenshotAsync(true).ContinueWith(DisplayBitmap);
@@ -105,6 +120,8 @@ namespace CefSharp.OffScreen.Example
 
         public static Task LoadPageAsync(IWebBrowser browser, string address = null)
         {
+            //If using .Net 4.6 then use TaskCreationOptions.RunContinuationsAsynchronously
+            //and switch to tcs.TrySetResult below - no need for the custom extension method
             var tcs = new TaskCompletionSource<bool>();
 
             EventHandler<LoadingStateChangedEventArgs> handler = null;
@@ -114,6 +131,8 @@ namespace CefSharp.OffScreen.Example
                 if (!args.IsLoading)
                 {
                     browser.LoadingStateChanged -= handler;
+                    //This is required when using a standard TaskCompletionSource
+                    //Extension method found in the CefSharp.Internals namespace
                     tcs.TrySetResultAsync(true);
                 }
             };
