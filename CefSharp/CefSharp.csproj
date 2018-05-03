@@ -79,6 +79,8 @@
     <Compile Include="Callback\IDeleteCookiesCallback.cs" />
     <Compile Include="Callback\IDownloadItemCallback.cs" />
     <Compile Include="Callback\IFileDialogCallback.cs" />
+    <Compile Include="Callback\IGeolocationCallback.cs" />
+    <Compile Include="Callback\IGetGeolocationCallback.cs" />
     <Compile Include="Callback\IJavascriptCallback.cs" />
     <Compile Include="Callback\IJsDialogCallback.cs" />
     <Compile Include="Callback\IPrintToPdfCallback.cs" />
@@ -88,6 +90,7 @@
     <Compile Include="Callback\IRunContextMenuCallback.cs" />
     <Compile Include="Callback\ISelectClientCertificateCallback.cs" />
     <Compile Include="Callback\ISetCookieCallback.cs" />
+    <Compile Include="Callback\TaskGetGeolocationCallback.cs" />
     <Compile Include="Callback\TaskDeleteCookiesCallback.cs" />
     <Compile Include="Callback\TaskSetCookieCallback.cs" />
     <Compile Include="Callback\TaskRegisterCdmCallback.cs" />
@@ -104,8 +107,6 @@
     <Compile Include="Internals\FileResourceHandler.cs" />
     <Compile Include="CefExtension.cs" />
     <Compile Include="CefLibraryHandle.cs" />
-    <Compile Include="JavascriptException.cs" />
-    <Compile Include="JavascriptStackFrame.cs" />
     <Compile Include="Structs\CompositionUnderline.cs" />
     <Compile Include="DomNode.cs" />
     <Compile Include="Structs\DraggableRegion.cs" />
@@ -163,6 +164,7 @@
     <Compile Include="Handler\IDragHandler.cs" />
     <Compile Include="Handler\IFindHandler.cs" />
     <Compile Include="Handler\IFocusHandler.cs" />
+    <Compile Include="Handler\IGeolocationHandler.cs" />
     <Compile Include="Handler\IJsDialogHandler.cs" />
     <Compile Include="Handler\IKeyboardHandler.cs" />
     <Compile Include="Handler\ILifeSpanHandler.cs" />
@@ -237,6 +239,7 @@
     <Compile Include="IResponse.cs" />
     <Compile Include="IWindowInfo.cs" />
     <Compile Include="Structs\MouseEvent.cs" />
+    <Compile Include="IBitmapFactory.cs" />
     <Compile Include="IDragData.cs" />
     <Compile Include="DownloadItem.cs" />
     <Compile Include="Internals\BrowserProcessResponse.cs" />
@@ -257,6 +260,7 @@
     <Compile Include="SchemeHandler\FolderSchemeHandlerFactory.cs" />
     <Compile Include="SchemeHandler\ISchemeHandlerFactory.cs" />
     <Compile Include="SslStatus.cs" />
+    <Compile Include="Internals\BitmapInfo.cs" />
     <Compile Include="Internals\IBrowserProcess.cs" />
     <Compile Include="Internals\JavascriptMethod.cs" />
     <Compile Include="Internals\JavascriptObject.cs" />

@@ -18,6 +18,7 @@
 #include "CefSharpBrowserWrapper.h"
 #include "CefDownloadItemCallbackWrapper.h"
 #include "CefBeforeDownloadCallbackWrapper.h"
+#include "CefGeolocationCallbackWrapper.h"
 #include "CefFileDialogCallbackWrapper.h"
 #include "CefAuthCallbackWrapper.h"
 #include "CefJSDialogCallbackWrapper.h"
@@ -146,6 +147,12 @@ namespace CefSharp
                     if (browserAdapter != nullptr)
                     {
                         client = browserAdapter->GetClientAdapter().get();
+
+                        auto renderClientAdapter = dynamic_cast<RenderClientAdapter*>(client.get());
+                        if (renderClientAdapter != nullptr)
+                        {
+                            renderClientAdapter->CreateBitmapInfo();
+                        }
                     }
                 }
             }
@@ -359,9 +366,9 @@ namespace CefSharp
             return returnFlag;
         }
 
-        bool ClientAdapter::OnConsoleMessage(CefRefPtr<CefBrowser> browser, cef_log_severity_t level, const CefString& message, const CefString& source, int line)
+        bool ClientAdapter::OnConsoleMessage(CefRefPtr<CefBrowser> browser, const CefString& message, const CefString& source, int line)
         {
-            auto args = gcnew ConsoleMessageEventArgs((LogSeverity)level, StringUtils::ToClr(message), StringUtils::ToClr(source), line);
+            auto args = gcnew ConsoleMessageEventArgs(StringUtils::ToClr(message), StringUtils::ToClr(source), line);
 
             if (!browser->IsPopup())
             {
@@ -531,82 +538,6 @@ namespace CefSharp
             auto sslInfoWrapper = gcnew CefSslInfoWrapper(ssl_info);
 
             return handler->OnCertificateError(_browserControl, browserWrapper, (CefErrorCode)cert_error, StringUtils::ToClr(request_url), sslInfoWrapper, requestCallback);
-        }
-
-        bool ClientAdapter::CanGetCookies(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, CefRefPtr<CefRequest> request)
-        {
-            auto handler = _browserControl->RequestHandler;
-
-            if (handler == nullptr)
-            {
-                return true;
-            }
-
-            auto browserWrapper = GetBrowserWrapper(browser->GetIdentifier(), browser->IsPopup());
-            CefFrameWrapper frameWrapper(frame);
-            CefRequestWrapper requestWrapper(request);
-
-            return handler->CanGetCookies(_browserControl, browserWrapper, %frameWrapper, %requestWrapper);
-        }
-
-        bool ClientAdapter::CanSetCookie(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, CefRefPtr<CefRequest> request, const CefCookie& cefCookie)
-        {
-            auto handler = _browserControl->RequestHandler;
-
-            if (handler == nullptr)
-            {
-                return true;
-            }
-
-            auto browserWrapper = GetBrowserWrapper(browser->GetIdentifier(), browser->IsPopup());
-            CefFrameWrapper frameWrapper(frame);
-            CefRequestWrapper requestWrapper(request);
-
-            auto cookie = gcnew Cookie();
-            auto cookieName = StringUtils::ToClr(cefCookie.name);
-
-            //TODO: This code is duplicated in ResourceHandlerWrapper
-            if (!String::IsNullOrEmpty(cookieName))
-            {
-                cookie->Name = StringUtils::ToClr(cefCookie.name);
-                cookie->Value = StringUtils::ToClr(cefCookie.value);
-                cookie->Domain = StringUtils::ToClr(cefCookie.domain);
-                cookie->Path = StringUtils::ToClr(cefCookie.path);
-                cookie->Secure = cefCookie.secure == 1;
-                cookie->HttpOnly = cefCookie.httponly == 1;
-
-                if (cefCookie.has_expires)
-                {
-                    auto expires = cefCookie.expires;
-                    cookie->Expires = DateTimeUtils::FromCefTime(expires.year,
-                        expires.month,
-                        expires.day_of_month,
-                        expires.hour,
-                        expires.minute,
-                        expires.second,
-                        expires.millisecond);
-                }
-
-                auto creation = cefCookie.creation;
-                cookie->Creation = DateTimeUtils::FromCefTime(creation.year,
-                    creation.month,
-                    creation.day_of_month,
-                    creation.hour,
-                    creation.minute,
-                    creation.second,
-                    creation.millisecond);
-
-                auto lastAccess = cefCookie.last_access;
-                cookie->LastAccess = DateTimeUtils::FromCefTime(lastAccess.year,
-                    lastAccess.month,
-                    lastAccess.day_of_month,
-                    lastAccess.hour,
-                    lastAccess.minute,
-                    lastAccess.second,
-                    lastAccess.millisecond);
-            }
-
-            return handler->CanSetCookie(_browserControl, browserWrapper, %frameWrapper, %requestWrapper, cookie);
         }
 
         bool ClientAdapter::OnQuotaRequest(CefRefPtr<CefBrowser> browser, const CefString& originUrl, int64 newSize, CefRefPtr<CefRequestCallback> callback)
@@ -1125,6 +1056,33 @@ namespace CefSharp
             }
         }
 
+        bool ClientAdapter::OnRequestGeolocationPermission(CefRefPtr<CefBrowser> browser, const CefString& requesting_url, int request_id, CefRefPtr<CefGeolocationCallback> callback)
+        {
+            auto handler = _browserControl->GeolocationHandler;
+
+            if (handler == nullptr)
+            {
+                // Default deny, as CEF does.
+                return false;
+            }
+
+            auto browserWrapper = GetBrowserWrapper(browser->GetIdentifier(), browser->IsPopup());
+            auto callbackWrapper = gcnew CefGeolocationCallbackWrapper(callback);
+
+            return handler->OnRequestGeolocationPermission(_browserControl, browserWrapper, StringUtils::ToClr(requesting_url), request_id, callbackWrapper);
+        }
+
+        void ClientAdapter::OnCancelGeolocationPermission(CefRefPtr<CefBrowser> browser, int request_id)
+        {
+            auto handler = _browserControl->GeolocationHandler;
+
+            if (handler != nullptr)
+            {
+                auto browserWrapper = GetBrowserWrapper(browser->GetIdentifier(), browser->IsPopup());
+                handler->OnCancelGeolocationPermission(_browserControl, browserWrapper, request_id);
+            }
+        }
+
         void ClientAdapter::OnBeforeDownload(CefRefPtr<CefBrowser> browser, CefRefPtr<CefDownloadItem> download_item,
             const CefString& suggested_name, CefRefPtr<CefBeforeDownloadCallback> callback)
         {
@@ -1294,39 +1252,6 @@ namespace CefSharp
 
                     // DomNode will be empty if input focus was cleared
                     handler->OnFocusedNodeChanged(_browserControl, browserWrapper, %frameWrapper, node);
-                }
-            }
-            else if (name == kOnUncaughtException)
-            {
-                auto handler = _browserControl->RenderProcessMessageHandler;
-                if (handler != nullptr)
-                {
-                    auto browserWrapper = GetBrowserWrapper(browser->GetIdentifier(), browser->IsPopup());
-                    CefFrameWrapper frameWrapper(browser->GetFrame(GetInt64(argList, 0)));
-
-                    auto exception = gcnew JavascriptException();
-                    exception->Message = StringUtils::ToClr(argList->GetString(1));
-
-                    auto stackTrace = gcnew System::Collections::Generic::List<JavascriptStackFrame^>();
-
-                    auto argFrames = argList->GetList(2);
-
-                    for (auto i = 0; i < static_cast<int>(argFrames->GetSize()); i++)
-                    {
-                        auto frame = argFrames->GetList(i);
-
-                        auto stackFrame = gcnew JavascriptStackFrame();
-                        stackFrame->FunctionName = StringUtils::ToClr(frame->GetString(0));
-                        stackFrame->LineNumber = frame->GetInt(1);
-                        stackFrame->ColumnNumber = frame->GetInt(2);
-                        stackFrame->SourceName = StringUtils::ToClr(frame->GetString(3));
-
-                        stackTrace->Add(stackFrame);
-                    }
-
-                    exception->StackTrace = stackTrace->ToArray();
-
-                    handler->OnUncaughtException(_browserControl, browserWrapper, %frameWrapper, exception);
                 }
             }
             else if (name == kEvaluateJavascriptResponse || name == kJavascriptCallbackResponse)

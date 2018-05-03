@@ -46,13 +46,6 @@ namespace CefSharp.Wpf
         /// </summary>
         private ManagedCefBrowserAdapter managedCefBrowserAdapter;
         /// <summary>
-        /// Track the state of the Mouse.Capture set in OnMouseLeave, when the user releases
-        /// the left button it's important we release the capture. It's important we track the mouse
-        /// capture state ourselves and not just to a Mouse.Captured == this check, as we use
-        /// Mouse.Capture for the popup that hosts dropdown menus
-        /// </summary>
-        private bool mouseCapturedInOnMouseLeave;
-        /// <summary>
         /// The ignore URI change
         /// </summary>
         private bool ignoreUriChange;
@@ -195,10 +188,15 @@ namespace CefSharp.Wpf
         /// <value>The resource handler factory.</value>
         public IResourceHandlerFactory ResourceHandlerFactory { get; set; }
         /// <summary>
-        /// Implement <see cref="IRenderHandler"/> and control how the control is rendered
+        /// Implement <see cref="IGeolocationHandler" /> and assign to handle requests for permission to use geolocation.
         /// </summary>
-        /// <value>The render Handler.</value>
-        public IRenderHandler RenderHandler { get; set; }
+        /// <value>The geolocation handler.</value>
+        public IGeolocationHandler GeolocationHandler { get; set; }
+        /// <summary>
+        /// Gets or sets the bitmap factory.
+        /// </summary>
+        /// <value>The bitmap factory.</value>
+        public IBitmapFactory BitmapFactory { get; set; }
         /// <summary>
         /// Implement <see cref="IRenderProcessMessageHandler" /> and assign to handle messages from the render process.
         /// </summary>
@@ -271,12 +269,9 @@ namespace CefSharp.Wpf
         public event EventHandler<LoadingStateChangedEventArgs> LoadingStateChanged;
 
         /// <summary>
-        /// Raised every time <see cref="IRenderWebBrowser.OnPaint"/> is called. You can access the underlying buffer, though it's
-        /// preferable to either override <see cref="OnPaint"/> or implement your own <see cref="IRenderHandler"/> as there is no outwardly
-        /// accessible locking (locking is done within the default <see cref="IRenderHandler"/> implementations).
-        /// It's important to note this event is fired on a CEF UI thread, which by default is not the same as your application UI thread
+        /// Raised before each render cycle, and allows you to adjust the bitmap before it's rendered/applied
         /// </summary>
-        public event EventHandler<PaintEventArgs> Paint;
+        public event EventHandler<RenderingEventArgs> Rendering;
 
         /// <summary>
         /// Navigates to the previous page in the browser history. Will automatically be enabled/disabled depending on the
@@ -470,7 +465,7 @@ namespace CefSharp.Wpf
 
             ResourceHandlerFactory = new DefaultResourceHandlerFactory();
             BrowserSettings = new BrowserSettings();
-            RenderHandler = new InteropBitmapRenderHandler();
+            BitmapFactory = new BitmapFactory();
 
             WpfKeyboardHandler = new WpfKeyboardHandler(this);
             
@@ -521,7 +516,7 @@ namespace CefSharp.Wpf
                 FrameLoadEnd = null;
                 LoadError = null;
                 LoadingStateChanged = null;
-                Paint = null;
+                Rendering = null;
 
                 if (isDisposing)
                 {
@@ -657,6 +652,33 @@ namespace CefSharp.Wpf
             return true;
         }
 
+        /// Creates the BitmapInfo instance used for rendering. Two instances
+        /// will be created, one will be used for the popup
+        /// </summary>
+        /// <param name="isPopup">if set to <c>true</c> [is popup].</param>
+        /// <returns>BitmapInfo.</returns>
+        /// <exception cref="System.Exception">BitmapFactory cannot be null</exception>
+        BitmapInfo IRenderWebBrowser.CreateBitmapInfo(bool isPopup)
+        {
+            return CreateBitmapInfo(isPopup);
+        }
+
+        /// <summary>
+        /// Creates the BitmapInfo instance used for rendering. Two instances
+        /// will be created, one will be used for the popup
+        /// </summary>
+        /// <param name="isPopup">if set to <c>true</c> [is popup].</param>
+        /// <returns>BitmapInfo.</returns>
+        /// <exception cref="System.Exception">BitmapFactory cannot be null</exception>
+        protected virtual BitmapInfo CreateBitmapInfo(bool isPopup)
+        {
+            if (BitmapFactory == null)
+            {
+                throw new Exception("BitmapFactory cannot be null");
+            }
+            return BitmapFactory.CreateBitmap(isPopup, DpiScaleFactor);
+        }
+
         /// <summary>
         /// Starts the dragging.
         /// </summary>
@@ -704,46 +726,52 @@ namespace CefSharp.Wpf
 
         /// <summary>
         /// Called when an element should be painted.
+        /// Pixel values passed to this method are scaled relative to view coordinates based on the value of
+        /// ScreenInfo.DeviceScaleFactor returned from GetScreenInfo. bitmapInfo.IsPopup indicates whether the element is the view
+        /// or the popup widget. BitmapInfo.DirtyRect contains the set of rectangles in pixel coordinates that need to be
+        /// repainted. The bitmap will be will be  width * height *4 bytes in size and represents a BGRA image with an upper-left origin.
+        /// The underlying buffer is copied into the back buffer and is accessible via BackBufferHandle
         /// </summary>
-        /// <param name="type">indicates whether the element is the view or the popup widget.</param>
-        /// <param name="dirtyRect">contains the set of rectangles in pixel coordinates that need to be repainted</param>
-        /// <param name="buffer">The bitmap will be will be  width * height *4 bytes in size and represents a BGRA image with an upper-left origin</param>
-        /// <param name="width">width</param>
-        /// <param name="height">height</param>
-        void IRenderWebBrowser.OnPaint(PaintElementType type, Rect dirtyRect, IntPtr buffer, int width, int height)
+        /// <param name="bitmapInfo">information about the bitmap to be rendered</param>
+        void IRenderWebBrowser.OnPaint(BitmapInfo bitmapInfo)
         {
-            OnPaint(type == PaintElementType.Popup, dirtyRect, buffer, width, height);
+            OnPaint(bitmapInfo);
         }
 
         /// <summary>
-        /// Called when an element should be painted. Pixel values passed to this method are scaled relative to view coordinates based on the
-        /// value of <see cref="ScreenInfo.DeviceScaleFactor"/> returned from <see cref="IRenderWebBrowser.GetScreenInfo"/>. To override the default behaviour
-        /// override this method or implement your own <see cref="IRenderHandler"/> and assign to <see cref="RenderHandler"/>
-        /// Called on the CEF UI Thread
+        /// Called when an element should be painted.
+        /// Pixel values passed to this method are scaled relative to view coordinates based on the value of
+        /// ScreenInfo.DeviceScaleFactor returned from GetScreenInfo. bitmapInfo.IsPopup indicates whether the element is the view
+        /// or the popup widget. BitmapInfo.DirtyRect contains the set of rectangles in pixel coordinates that need to be
+        /// repainted. The bitmap will be will be  width * height *4 bytes in size and represents a BGRA image with an upper-left origin.
+        /// The underlying buffer is copied into the back buffer and is accessible via BackBufferHandle
         /// </summary>
-        /// <param name="type">indicates whether the element is the view or the popup widget.</param>
-        /// <param name="dirtyRect">contains the set of rectangles in pixel coordinates that need to be repainted</param>
-        /// <param name="buffer">The bitmap will be will be  width * height *4 bytes in size and represents a BGRA image with an upper-left origin</param>
-        /// <param name="width">width</param>
-        /// <param name="height">height</param>
-        protected virtual void OnPaint(bool isPopup, Rect dirtyRect, IntPtr buffer, int width, int height)
+        /// <param name="bitmapInfo">information about the bitmap to be rendered</param>
+        protected virtual void OnPaint(BitmapInfo bitmapInfo)
         {
-            var paint = Paint;
-            if (paint != null)
+            UiThreadRunAsync(delegate
             {
-                var args = new PaintEventArgs(isPopup, dirtyRect, buffer, width, height);
-
-                paint(this, args);
-
-                if(args.Handled)
+                lock (bitmapInfo.BitmapLock)
                 {
-                    return;
+                    var wpfBitmapInfo = (WpfBitmapInfo)bitmapInfo;
+                    // Inform parents that the browser rendering is updating
+                    OnRendering(this, wpfBitmapInfo);
+
+                    // Now update the WPF image
+                    if (wpfBitmapInfo.CreateNewBitmap)
+                    {
+                        var img = bitmapInfo.IsPopup ? popupImage : image;
+
+                        img.Source = null;
+                        GC.Collect(1);
+
+                        img.Source = wpfBitmapInfo.CreateBitmap();
+                    }
+
+                    wpfBitmapInfo.Invalidate();
                 }
-            }
-
-            var img = isPopup ? popupImage : image;
-
-            RenderHandler?.OnPaint(isPopup, buffer, dirtyRect, width, height, img);
+            },
+            DispatcherPriority.Render);
         }
 
         /// <summary>
@@ -1543,22 +1571,6 @@ namespace CefSharp.Wpf
                         browser.GetHost().NotifyScreenInfoChanged();
                     }
 
-                    //Ignore this for custom bitmap factories
-                    if (RenderHandler != null && RenderHandler.GetType() == typeof(WritableBitmapRenderHandler) || RenderHandler.GetType() == typeof(InteropBitmapRenderHandler))
-                    {
-                        if (DpiScaleFactor > 1.0 && RenderHandler.GetType() != typeof(WritableBitmapRenderHandler))
-                        {
-                            const int DefaultDpi = 96;
-                            var scale = DefaultDpi * DpiScaleFactor;
-
-                            RenderHandler = new WritableBitmapRenderHandler(scale, scale);
-                        }
-                        else if (DpiScaleFactor == 1.0 && RenderHandler.GetType() != typeof(InteropBitmapRenderHandler))
-                        {
-                            RenderHandler = new InteropBitmapRenderHandler();
-                        }
-                    }
-
                     var window = source.RootVisual as Window;
                     if(window != null)
                     {
@@ -1566,7 +1578,7 @@ namespace CefSharp.Wpf
                         window.LocationChanged += OnWindowLocationChanged;
                     }
 
-                    browserScreenLocation = GetBrowserScreenLocation();
+                    UpdateBrowserScreenLocation();
                 }
             }
             else if (args.OldSource != null)
@@ -1608,22 +1620,11 @@ namespace CefSharp.Wpf
             }
         }
 
-        /// <summary>
-        /// Called when the Window Location Changes, the PresentationSource changes
-        /// and the page loads. We manually track the position as CEF makes calls
-        /// on a non-UI thread and calling Invoke in IRenderWebBrowser.GetScreenPoint
-        /// makes it very easy to deadlock the browser.
-        /// </summary>
-        /// <returns>Returns screen coordinates of the browsers location</returns>
-        protected virtual Point GetBrowserScreenLocation()
+        private void UpdateBrowserScreenLocation()
         {
             if (source != null && PresentationSource.FromVisual(this) != null)
             {
-                return PointToScreen(new Point());
-            }
-            else
-            {
-                return new Point();
+                browserScreenLocation = PointToScreen(new Point());
             }
         }
 
@@ -1631,7 +1632,7 @@ namespace CefSharp.Wpf
         {
             //We maintain a manual reference to the controls screen location
             //(relative to top/left of the screen)
-            browserScreenLocation = GetBrowserScreenLocation();
+            UpdateBrowserScreenLocation();
         }
 
         /// <summary>
@@ -1721,26 +1722,7 @@ namespace CefSharp.Wpf
 
             if (browser != null)
             {
-                var host = browser.GetHost();
-                host.WasHidden(!isVisible);
-
-                if (isVisible)
-                {
-                    //Fix for #1778 - When browser becomes visible we update the zoom level
-                    //browsers of the same origin will share the same zoomlevel and
-                    //we need to track the update, so our ZoomLevelProperty works
-                    //properly
-                    host.GetZoomLevelAsync().ContinueWith(t =>
-                    {
-                        if (!IsDisposed)
-                        {
-                            SetCurrentValue(ZoomLevelProperty, t.Result);
-                        }
-                    },
-                    CancellationToken.None,
-                    TaskContinuationOptions.OnlyOnRanToCompletion,
-                    TaskScheduler.FromCurrentSynchronizationContext());
-                }
+                browser.GetHost().WasHidden(!isVisible);
             }
         }
 
@@ -1789,7 +1771,7 @@ namespace CefSharp.Wpf
             tooltipTimer.IsEnabled = false;
 
             //Initial value for screen location
-            browserScreenLocation = GetBrowserScreenLocation();
+            UpdateBrowserScreenLocation();
         }
 
         /// <summary>
@@ -2105,13 +2087,6 @@ namespace CefSharp.Wpf
         {
             OnMouseButton(e);
 
-            //If we have a mouse capture from OnMouseLeave we release it now
-            if(mouseCapturedInOnMouseLeave)
-            {
-                Mouse.Capture(null);
-                mouseCapturedInOnMouseLeave = false;
-            }
-
             base.OnMouseUp(e);
         }
 
@@ -2126,18 +2101,14 @@ namespace CefSharp.Wpf
                 var modifiers = e.GetModifiers();
                 var point = e.GetPosition(this);
 
-                //When left mouse button is pressed and we leave, capture the mouse so scrolling outside the
-                //bounds of the control works.
+                //If the LeftMouse button is pressed when leaving the control we send a mouse click with mouseUp: true
+                //to let the browser know the mouse has been released
                 if (e.LeftButton == MouseButtonState.Pressed)
                 {
-                    Mouse.Capture(this);
-
-                    mouseCapturedInOnMouseLeave = true;
+                    browser.GetHost().SendMouseClickEvent((int)point.X, (int)point.Y, MouseButtonType.Left, mouseUp: true, clickCount: 1, modifiers: modifiers);
                 }
-                else
-                {
-                    browser.GetHost().SendMouseMoveEvent((int)point.X, (int)point.Y, true, modifiers);
-                }
+                                
+                browser.GetHost().SendMouseMoveEvent((int)point.X, (int)point.Y, true, modifiers);
 
                 ((IWebBrowserInternal)this).SetTooltipText(null);
             }
@@ -2325,6 +2296,20 @@ namespace CefSharp.Wpf
         public IJavascriptObjectRepository JavascriptObjectRepository
         {
             get { return managedCefBrowserAdapter == null ? null : managedCefBrowserAdapter.JavascriptObjectRepository; }
+        }
+
+        /// <summary>
+        /// Raises Rendering event
+        /// </summary>
+        /// <param name="sender">The sender.</param>
+        /// <param name="bitmapInfo">The bitmap information.</param>
+        protected virtual void OnRendering(object sender, WpfBitmapInfo bitmapInfo)
+        {
+            var rendering = Rendering;
+            if (rendering != null)
+            {
+                rendering(sender, new RenderingEventArgs(bitmapInfo));
+            }
         }
 
         /// <summary>

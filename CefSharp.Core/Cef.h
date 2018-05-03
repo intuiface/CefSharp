@@ -16,6 +16,7 @@
 #include "Internals/CefSharpApp.h"
 #include "Internals/PluginVisitor.h"
 #include "Internals/CefTaskScheduler.h"
+#include "Internals/CefGetGeolocationCallbackAdapter.h"
 #include "Internals/CefRegisterCdmCallbackAdapter.h"
 #include "CookieManager.h"
 #include "CefSettings.h"
@@ -381,24 +382,6 @@ namespace CefSharp
         }
 
         /// <summary>
-        ///  Returns a cookie manager that neither stores nor retrieves cookies. All
-        /// usage of cookies will be blocked including cookies accessed via the network
-        /// (request/response headers), via JavaScript (document.cookie), and via
-        /// CefCookieManager methods. No cookies will be displayed in DevTools. If you
-        /// wish to only block cookies sent via the network use the IRequestHandler
-        /// CanGetCookies and CanSetCookie methods instead.
-        /// </summary>
-        static ICookieManager^ GetBlockingCookieManager()
-        {
-            auto cookieManager = CefCookieManager::GetBlockingManager();
-            if (cookieManager.get())
-            {
-                return gcnew CookieManager(cookieManager);
-            }
-            return nullptr;
-        }
-
-        /// <summary>
         /// Shuts down CefSharp and the underlying CEF infrastructure. This method is safe to call multiple times; it will only
         /// shut down CEF on the first call (all subsequent calls will be ignored).
         /// This method should be called on the main application thread to shut down the CEF browser process before the application exits. 
@@ -532,7 +515,35 @@ namespace CefSharp
         {
             CefEnableHighDPISupport();
         }
-        
+
+        /// <summary>
+        /// Request a one-time geolocation update.
+        /// This function bypasses any user permission checks so should only be
+        /// used by code that is allowed to access location information. 
+        /// </summary>
+        /// <returns>Returns 'best available' location info or, if the location update failed, with error info.</returns>
+        static bool GetGeolocation(IGetGeolocationCallback^ callback)
+        {
+            CefRefPtr<CefGetGeolocationCallback> wrapper = callback == nullptr ? NULL : new CefGetGeolocationCallbackAdapter(callback);
+
+            return CefGetGeolocation(wrapper);
+        }
+
+        /// <summary>
+        /// Request a one-time geolocation update.
+        /// This function bypasses any user permission checks so should only be
+        /// used by code that is allowed to access location information. 
+        /// </summary>
+        /// <returns>Returns 'best available' location info or, if the location update failed, with error info.</returns>
+        static Task<Geoposition^>^ GetGeolocationAsync()
+        {
+            auto callback = gcnew TaskGetGeolocationCallback();
+            
+            GetGeolocation(callback);
+
+            return callback->Task;
+        }
+
         /// <summary>
         /// Returns true if called on the specified CEF thread.
         /// </summary>

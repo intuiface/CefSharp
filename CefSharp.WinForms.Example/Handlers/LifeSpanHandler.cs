@@ -3,61 +3,77 @@
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
 using System;
-using System.Collections.Generic;
 using System.Windows.Forms;
-using CefSharp.WinForms.Example.Helper;
 
 namespace CefSharp.WinForms.Example.Handlers
 {
     public class LifeSpanHandler : ILifeSpanHandler
     {
-        private Dictionary<int, PopupAsChildHelper> popupasChildHelpers = new Dictionary<int, PopupAsChildHelper>();
-
         bool ILifeSpanHandler.OnBeforePopup(IWebBrowser browserControl, IBrowser browser, IFrame frame, string targetUrl, string targetFrameName, WindowOpenDisposition targetDisposition, bool userGesture, IPopupFeatures popupFeatures, IWindowInfo windowInfo, IBrowserSettings browserSettings, ref bool noJavascriptAccess, out IWebBrowser newBrowser)
         {
-            //Set newBrowser to null unless your attempting to host the popup in a new instance of ChromiumWebBrowser
+            // Set newBrowser to null unless your attempting to host the popup in a new instance of ChromiumWebBrowser
+            // This should only be used in WPF/OffScreen
             newBrowser = null;
 
-            //Use IWindowInfo.SetAsChild to specify the parent handle
-            //NOTE: user PopupAsChildHelper to handle with Form move and Control resize
-            var chromiumWebBrowser = (ChromiumWebBrowser)browserControl;
+            return false; //Return true to cancel the popup creation
 
-            chromiumWebBrowser.Invoke(new Action(() =>
-            {
-                var owner = chromiumWebBrowser.FindForm() as BrowserForm;
+            // Hosting the popup in your own control/window
+            // Use IWindowInfo.SetAsChild to specify the parent handle
+            // NOTE: Window resize not yet handled - you need to get the
+            // IBrowserHost from the newly created IBrowser instance that represents the popup
+            // Then subscribe to window resize notifications and call NotifyMoveOrResizeStarted().
+            // Also any chances in width/height you need to call SetWindowPos on the browsers HWND
+            // Use NativeMethodWrapper.SetWindowPosition to achieve this - you can get the HWND using
+            // IBrowserHost method
 
-                if(owner != null)
-                {
-                    var control = new Control();
-                    control.Dock = DockStyle.Fill;
-                    control.CreateControl();
+            //var chromiumWebBrowser = (ChromiumWebBrowser)browserControl;
 
-                    owner.AddTab(control, targetUrl);
+            //var windowX = windowInfo.X;
+            //var windowY = windowInfo.Y;
+            //var windowWidth = (windowInfo.Width == int.MinValue) ? 600 : windowInfo.Width;
+            //var windowHeight = (windowInfo.Height == int.MinValue) ? 800 : windowInfo.Height;
 
-                    var rect = control.ClientRectangle;
+            //chromiumWebBrowser.Invoke(new Action(() =>
+            //{
+            //    var owner = chromiumWebBrowser.FindForm();
 
-                    windowInfo.SetAsChild(control.Handle, rect.Left, rect.Top, rect.Right, rect.Bottom);
-                }
-            }));
+            //    var popup = new Form
+            //    {
+            //        Left = windowX,
+            //        Top = windowY,
+            //        Width = windowWidth,
+            //        Height = windowHeight,
+            //        Text = targetFrameName
+            //    };
 
-            return false;
+            //    popup.CreateControl();
+
+            //    owner.AddOwnedForm(popup);
+
+            //    var control = new Control();
+            //    control.Dock = DockStyle.Fill;
+            //    control.CreateControl();
+
+            //    popup.Controls.Add(control);
+
+            //    popup.Show();
+
+            //    var rect = control.ClientRectangle;
+
+            //    windowInfo.SetAsChild(control.Handle, rect.Left, rect.Top, rect.Right, rect.Bottom);
+            //}));
         }
 
         void ILifeSpanHandler.OnAfterCreated(IWebBrowser browserControl, IBrowser browser)
         {
-            if (browser.IsPopup)
-            {
-                var interceptor = new PopupAsChildHelper(browser);
 
-                popupasChildHelpers.Add(browser.Identifier, interceptor);
-            }
         }
 
         bool ILifeSpanHandler.DoClose(IWebBrowser browserControl, IBrowser browser)
         {
             //We need to allow popups to close
             //If the browser has been disposed then we'll just let the default behaviour take place
-            if (browser.IsDisposed || browser.IsPopup)
+            if(browser.IsDisposed || browser.IsPopup)
             {
                 return false;
             }
@@ -68,18 +84,9 @@ namespace CefSharp.WinForms.Example.Handlers
             return true;
         }
 
-        void ILifeSpanHandler.OnBeforeClose(IWebBrowser browserControl, IBrowser browser)
+        public void OnBeforeClose(IWebBrowser browserControl, IBrowser browser)
         {
-            if (!browser.IsDisposed && browser.IsPopup)
-            {
-                var interceptor = popupasChildHelpers[browser.Identifier];
 
-                if (interceptor != null)
-                {
-                    popupasChildHelpers[browser.Identifier] = null;
-                    interceptor.Dispose();
-                }
-            }
         }
     }
 }

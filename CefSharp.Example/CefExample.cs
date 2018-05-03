@@ -68,8 +68,9 @@ namespace CefSharp.Example
             //settings.CefCommandLineArgs.Add("enable-system-flash", "1"); //Automatically discovered and load a system-wide installation of Pepper Flash.
             //settings.CefCommandLineArgs.Add("allow-running-insecure-content", "1"); //By default, an https page cannot run JavaScript, CSS or plugins from http URLs. This provides an override to get the old insecure behavior. Only available in 47 and above.
 
-            //settings.CefCommandLineArgs.Add("enable-logging", "1"); //Enable Logging for the Renderer process (will open with a cmd prompt and output debug messages - use in conjunction with setting LogSeverity = LogSeverity.Verbose;)
-            //settings.LogSeverity = LogSeverity.Verbose; // Needed for enable-logging to output messages
+            settings.CefCommandLineArgs.Add("touch-events", "enabled");
+            settings.CefCommandLineArgs.Add("enable-logging", "1"); //Enable Logging for the Renderer process (will open with a cmd prompt and output debug messages - use in conjunction with setting LogSeverity = LogSeverity.Verbose;)
+            settings.LogSeverity = LogSeverity.Verbose; // Needed for enable-logging to output messages
 
             //settings.CefCommandLineArgs.Add("disable-extensions", "1"); //Extension support can be disabled
             //settings.CefCommandLineArgs.Add("disable-pdf-extension", "1"); //The PDF extension specifically can be disabled
@@ -98,9 +99,6 @@ namespace CefSharp.Example
 
             settings.MultiThreadedMessageLoop = multiThreadedMessageLoop;
             settings.ExternalMessagePump = !multiThreadedMessageLoop;
-
-            //Enables Uncaught exception handler
-            settings.UncaughtExceptionStackSize = 10;
 
             // Off Screen rendering (WPF/Offscreen)
             if(osr)
@@ -180,11 +178,6 @@ namespace CefSharp.Example
             settings.RegisterExtension(new CefExtension("cefsharp/example", Resources.extension));
 
             settings.FocusedNodeChangedEnabled = true;
-
-            //NOTE: Set this before any calls to Cef.Initialize to specify a proxy with username and password
-            //One set this cannot be changed at runtime. If you need to change the proxy at runtime (dynamically) then
-            //see https://github.com/cefsharp/CefSharp/wiki/General-Usage#proxy-resolution
-            //CefSharpSettings.Proxy = new ProxyOptions(ip: "127.0.0.1", port: "8080", username: "cefsharp", password: "123");
 
             if (!Cef.Initialize(settings, performDependencyCheck: !DebuggingSubProcess, browserProcessHandler: browserProcessHandler))
             {
