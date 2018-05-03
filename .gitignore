@@ -1,4 +1,3 @@
-*.dll
 *.exe
 *.exe.config
 *.exe.config
@@ -20,9 +19,7 @@
 *.VC.db
 _ReSharper*
 
-bin/
 obj/
-packages/
 Debug/
 Release/
 CefSharp/app.aps
