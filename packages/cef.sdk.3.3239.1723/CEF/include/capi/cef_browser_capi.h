@@ -33,7 +33,7 @@
 // by hand. See the translator.README.txt file in the tools directory for
 // more information.
 //
-// $hash=ff3ebc51ed5743aabac0be94caf2edeedbd413b7$
+// $hash=69d06cadc387e555d3c45180d2e4458e0d392b72$
 //
 
 #ifndef CEF_INCLUDE_CAPI_CEF_BROWSER_CAPI_H_
@@ -620,6 +620,12 @@ typedef struct _cef_browser_host_t {
   // Send a capture lost event to the browser.
   ///
   void(CEF_CALLBACK* send_capture_lost_event)(struct _cef_browser_host_t* self);
+
+  ///
+  // Send a touch event to the browser for a windowless browser.
+  ///
+  void(CEF_CALLBACK* send_touch_event)(struct _cef_browser_host_t* self,
+                                       const struct _cef_touch_event_t* event);
 
   ///
   // Notify the browser that the window hosting it is about to be moved or
