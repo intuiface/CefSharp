@@ -20,8 +20,6 @@
 _ReSharper*
 
 obj/
-Debug/
-Release/
 CefSharp/app.aps
 debug.log
 CefSharp.BrowserSubprocess/Release
