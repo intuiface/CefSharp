@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
-using CefSharp.ModelBinding;
 using CefSharp.Event;
 using System.Threading.Tasks;
 
@@ -37,7 +36,8 @@ namespace CefSharp.Internals
         private static long lastId;
 
         public event EventHandler<JavascriptBindingEventArgs> ResolveObject;
-        public event EventHandler<JavascriptBindingEventArgs> ObjectBoundInJavascript;		
+        public event EventHandler<JavascriptBindingCompleteEventArgs> ObjectBoundInJavascript;
+        public event EventHandler<JavascriptBindingMultipleCompleteEventArgs> ObjectsBoundInJavascript;
 
         /// <summary>
         /// A hash from assigned object ids to the objects,
@@ -54,6 +54,8 @@ namespace CefSharp.Internals
         public void Dispose()
         {
             ResolveObject = null;
+            ObjectBoundInJavascript = null;
+            ObjectsBoundInJavascript = null;
         }
 
         public bool HasBoundObjects
@@ -66,6 +68,8 @@ namespace CefSharp.Internals
             return objects.Values.Any(x => x.Name == name); 
         }
 
+        //Ideally this would internal, unfurtunately it's used in C++
+        //and it's hard to expose internals
         public List<JavascriptObject> GetObjects(List<string> names = null)
         {
             //If there are no objects names or the count is 0 then we will raise
@@ -94,25 +98,21 @@ namespace CefSharp.Internals
             return objectsByName;
         }
 
-
-        public void ObjectsBound(List<string> names)
+        public void ObjectsBound(List<Tuple<string, bool, bool>> objs)
         {
-            //TODO: JSB Should this be a single event invocation or
-            // one per object that was bound??? (Currently one per object)
-            
-            //Execute on Threadpool so we don't unnessicarily block the CEF IO thread
-            var handler = ObjectBoundInJavascript;
-            if(handler != null)
-            { 
+            var boundObjectHandler = ObjectBoundInJavascript;
+            var boundObjectsHandler = ObjectsBoundInJavascript;
+            if (boundObjectHandler != null || boundObjectsHandler != null)
+            {
+                //Execute on Threadpool so we don't unnessicarily block the CEF IO thread
                 Task.Run(() =>
                 {
-                    foreach (var name in names)
+                    foreach (var obj in objs)
                     {
-                        if (handler != null)
-                        {
-                            handler(this, new JavascriptBindingEventArgs(this, name));
-                        }
+                        boundObjectHandler?.Invoke(this, new JavascriptBindingCompleteEventArgs(this, obj.Item1, obj.Item2, obj.Item3));
                     }
+
+                    boundObjectsHandler?.Invoke(this, new JavascriptBindingMultipleCompleteEventArgs(this, objs.Select(x => x.Item1).ToList()));
                 });			
             }
         }
@@ -160,7 +160,27 @@ namespace CefSharp.Internals
             AnalyseObjectForBinding(jsObject, analyseMethods: true, analyseProperties: !isAsync, readPropertyValue: false, camelCaseJavascriptNames: camelCaseJavascriptNames);
         }
 
-        public bool TryCallMethod(long objectId, string name, object[] parameters, out object result, out string exception)
+        public void UnRegisterAll()
+        {
+            objects.Clear();
+        }
+
+        public bool UnRegister(string name)
+        {
+            foreach (var kvp in objects)
+            {
+                if(string.Equals(kvp.Value.Name, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    objects.Remove(kvp.Key);
+
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        internal bool TryCallMethod(long objectId, string name, object[] parameters, out object result, out string exception)
         {
             exception = "";
             result = null;
@@ -296,7 +316,7 @@ namespace CefSharp.Internals
             return false;
         }
 
-        public bool TryGetProperty(long objectId, string name, out object result, out string exception)
+        internal bool TryGetProperty(long objectId, string name, out object result, out string exception)
         {
             exception = "";
             result = null;
@@ -326,7 +346,7 @@ namespace CefSharp.Internals
             return false;
         }
 
-        public bool TrySetProperty(long objectId, string name, object value, out string exception)
+        internal bool TrySetProperty(long objectId, string name, object value, out string exception)
         {
             exception = "";
             JavascriptObject obj;
@@ -428,12 +448,7 @@ namespace CefSharp.Internals
 
         private void RaiseResolveObjectEvent(string name)
         {
-            var handler = ResolveObject;
-
-            if(handler != null)
-            {
-                handler(this, new JavascriptBindingEventArgs(this, name));
-            }
+            ResolveObject?.Invoke(this, new JavascriptBindingEventArgs(this, name));
         }
 
         private static JavascriptMethod CreateJavaScriptMethod(MethodInfo methodInfo, bool camelCaseJavascriptNames)

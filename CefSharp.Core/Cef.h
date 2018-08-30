@@ -16,7 +16,6 @@
 #include "Internals/CefSharpApp.h"
 #include "Internals/PluginVisitor.h"
 #include "Internals/CefTaskScheduler.h"
-#include "Internals/CefGetGeolocationCallbackAdapter.h"
 #include "Internals/CefRegisterCdmCallbackAdapter.h"
 #include "CookieManager.h"
 #include "CefSettings.h"
@@ -169,7 +168,11 @@ namespace CefSharp
             if (IsInitialized)
             {
                 // NOTE: Can only initialize Cef once, to make this explicitly clear throw exception on subsiquent attempts
-                throw gcnew Exception("Cef can only be initialized once. Use Cef.IsInitialized to guard against this exception.");
+                throw gcnew Exception("CEF can only be initialized once per process. This is a limitation of the underlying " + 
+					"CEF/Chromium framework. You can change many (not all) settings at runtime through RequestContext.SetPreference. " + 
+					"See https://github.com/cefsharp/CefSharp/wiki/General-Usage#request-context-browser-isolation " +
+					"Use Cef.IsInitialized to guard against this exception. If you are seeing this unexpectedly then you are likely " +
+					"calling Cef.Initialize after you've created an instance of ChromiumWebBrowser, it must be before the first instance is created.");
             }
             
             if (cefSettings->BrowserSubprocessPath == nullptr)
@@ -382,6 +385,24 @@ namespace CefSharp
         }
 
         /// <summary>
+        ///  Returns a cookie manager that neither stores nor retrieves cookies. All
+        /// usage of cookies will be blocked including cookies accessed via the network
+        /// (request/response headers), via JavaScript (document.cookie), and via
+        /// CefCookieManager methods. No cookies will be displayed in DevTools. If you
+        /// wish to only block cookies sent via the network use the IRequestHandler
+        /// CanGetCookies and CanSetCookie methods instead.
+        /// </summary>
+        static ICookieManager^ GetBlockingCookieManager()
+        {
+            auto cookieManager = CefCookieManager::GetBlockingManager();
+            if (cookieManager.get())
+            {
+                return gcnew CookieManager(cookieManager);
+            }
+            return nullptr;
+        }
+
+        /// <summary>
         /// Shuts down CefSharp and the underlying CEF infrastructure. This method is safe to call multiple times; it will only
         /// shut down CEF on the first call (all subsequent calls will be ignored).
         /// This method should be called on the main application thread to shut down the CEF browser process before the application exits. 
@@ -399,7 +420,10 @@ namespace CefSharp
                 {
                     if (_initializedThreadId != Thread::CurrentThread->ManagedThreadId)
                     {
-                        throw gcnew Exception("Shutdown must be called on the same thread that Initialize was called - typically your UI thread. CefSharp was initialized on ManagedThreadId: " + Thread::CurrentThread->ManagedThreadId);
+                        throw gcnew Exception("Cef.Shutdown must be called on the same thread that Cef.Initialize was called - typically your UI thread." +
+							"If you called Cef.Initialize on a Thread other than the UI thread then you will need to call Cef.Shutdown on the same thread." +
+							"Cef.Initialize was called on ManagedThreadId: " + _initializedThreadId + "where Cef.Shutdown is being called on" +
+							"ManagedThreadId:" + Thread::CurrentThread->ManagedThreadId);
                     }
 
                     UIThreadTaskFactory = nullptr;
@@ -435,7 +459,7 @@ namespace CefSharp
         }
 
         /// <summary>
-        /// This method should only be used by advanced users, if your unsure then use Cef.Shutdown().
+        /// This method should only be used by advanced users, if you're unsure then use Cef.Shutdown().
         /// This function should be called on the main application thread to shut down
         /// the CEF browser process before the application exits. This method simply obtains a lock
         /// and calls the native CefShutdown method, only IsInitialized is checked. All ChromiumWebBrowser
@@ -515,35 +539,7 @@ namespace CefSharp
         {
             CefEnableHighDPISupport();
         }
-
-        /// <summary>
-        /// Request a one-time geolocation update.
-        /// This function bypasses any user permission checks so should only be
-        /// used by code that is allowed to access location information. 
-        /// </summary>
-        /// <returns>Returns 'best available' location info or, if the location update failed, with error info.</returns>
-        static bool GetGeolocation(IGetGeolocationCallback^ callback)
-        {
-            CefRefPtr<CefGetGeolocationCallback> wrapper = callback == nullptr ? NULL : new CefGetGeolocationCallbackAdapter(callback);
-
-            return CefGetGeolocation(wrapper);
-        }
-
-        /// <summary>
-        /// Request a one-time geolocation update.
-        /// This function bypasses any user permission checks so should only be
-        /// used by code that is allowed to access location information. 
-        /// </summary>
-        /// <returns>Returns 'best available' location info or, if the location update failed, with error info.</returns>
-        static Task<Geoposition^>^ GetGeolocationAsync()
-        {
-            auto callback = gcnew TaskGetGeolocationCallback();
-            
-            GetGeolocation(callback);
-
-            return callback->Task;
-        }
-
+        
         /// <summary>
         /// Returns true if called on the specified CEF thread.
         /// </summary>

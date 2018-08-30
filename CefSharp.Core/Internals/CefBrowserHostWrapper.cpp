@@ -358,23 +358,6 @@ void CefBrowserHostWrapper::ImeCancelComposition()
     _browserHost->ImeCancelComposition();
 }
 
-void CefBrowserHostWrapper::SendTouchEvent(int id, int x, int y, float force, float radius_x, float radius_y, int eventType, CefEventFlags modifiers)
-{
-	ThrowIfDisposed();
-
-	CefTouchEvent touchEvent;
-	touchEvent.x = x;
-	touchEvent.y = y;
-	touchEvent.modifiers = (uint32)modifiers;
-	touchEvent.force = force;
-	touchEvent.radius_x = radius_x;
-	touchEvent.radius_y = radius_y;
-	touchEvent.type = (cef_touch_event_type_t)eventType;
-	touchEvent.id = id;
-
-	_browserHost->SendTouchEvent(touchEvent);
-}
-
 void CefBrowserHostWrapper::SendMouseClickEvent(MouseEvent mouseEvent, MouseButtonType mouseButtonType, bool mouseUp, int clickCount)
 {
     ThrowIfDisposed();

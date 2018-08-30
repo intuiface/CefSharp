@@ -4,7 +4,6 @@
 
 using System;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -14,16 +13,20 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Microsoft.Win32.SafeHandles;
 using CefSharp.Internals;
 using CefSharp.Wpf.Internals;
 using CefSharp.Wpf.Rendering;
-using SharpDX.Direct3D9;
-using SharpDX.WPF;
+using CefSharp.Enums;
+using CefSharp.Structs;
 
-namespace CefSharp.Wpf
+using Point = System.Windows.Point;
+using Size = System.Windows.Size;
+using CursorType = CefSharp.Enums.CursorType;
+using Rect = CefSharp.Structs.Rect;
+
+namespace CefSharp.Wpf 
 {
     /// <summary>
     /// ChromiumWebBrowser is the WPF web browser control
@@ -33,343 +36,15 @@ namespace CefSharp.Wpf
     /// <seealso cref="CefSharp.Wpf.IWpfWebBrowser" />
     public class ChromiumWebBrowser : ContentControl, IRenderWebBrowser, IWpfWebBrowser
     {
-        //POPUP MOD
-        public bool PopupJustOpened { get; protected set; }
-        private Point popupPosition;
-        private Size popupSize;
-        private bool DirectXLostWarned = false;
-        private bool FirstDirectXInitialization = true;
-        public BitmapSource Popup { get; protected set; }
-        public BitmapSource Bitmap { get; protected set; }
-
-        //END OF POPUP MOD
-
-        private int _WindowLessFramerate = 60;
-        public int WindowLessFramerate
-        {
-            get
-            {
-                return _WindowLessFramerate;
-            }
-            set
-            {
-                _WindowLessFramerate = value;
-                if (browser != null)
-                {
-                    BrowserSettings.WindowlessFrameRate = value;
-                }
-            }
-        }
-
-        //DX MOD
-
-        public Action<string> DirectXLost;
-        public Action<string> DirectXNotCreated;
-
-        public bool IsDirectXRendering = true;
-
-        public int Framerate_LastSecond = 0;
-        public int Framerate_FrameCountByDelta = 0;
-        public int Framerate_FramerateValue = 0;
-
-        public BitmapInfo CurrentPopup = null;
-        public Rect CurrentPopupPosition;
-        public bool PopupVisibility = false;
-        BitmapInfo LastInfo = null;
-        volatile bool hasBeenRendered = true;
-
-        /// <summary>
-        /// System copy memory.
-        /// </summary>
-        /// <param name="dest"></param>
-        /// <param name="src"></param>
-        /// <param name="count"></param>
-        [DllImport("kernel32.dll", EntryPoint = "CopyMemory", SetLastError = false)]
-        public static extern void CopyMemory(IntPtr dest, IntPtr src, uint count);
-
-        /// <summary>
-        /// In case of DirectX rendering, Hold Dx9 texture.
-        /// </summary>
-        private DXImageSource src;
-
-        /// <summary>
-        /// Try to render in a DirectX texture.
-        /// </summary>
-        private bool IsDirectXInitialized = false;
-
-        /// <summary>
-        /// Texture whee data is injected (dynamic)
-        /// </summary>
-        private SharpDX.Direct3D9.Texture texA;
-
-        /// <summary>
-        /// Texture RenderTarget compliant
-        /// </summary>
-        private SharpDX.Direct3D9.Texture tex;
-
-        /// <summary>
-        /// Texture Height when created
-        /// </summary>
-        private int texHeight;
-
-        /// <summary>
-        /// Texture Height when created
-        /// </summary>
-        private int texWidth;
-
-        /// <summary>
-        /// DirectX device. One to rule them all.
-        /// </summary>
-        private static Lazy<D3D9> device9 = new Lazy<D3D9>();
-
-        void ReInitTextures(BitmapInfo bitmapInfo)
-        {
-            lock (this)
-            {
-                var oldTex = tex;
-                var oldTexA = texA;
-                InitTextures(bitmapInfo);
-                if (src != null)
-                {
-                    src.SetBackBuffer(tex);
-                }
-                oldTex.Dispose();
-                oldTexA.Dispose();
-                OnPaint(bitmapInfo);
-            }
-        }
-
-        void InitTextures(BitmapInfo bitmapInfo)
-        {
-            //File.AppendAllText("Log.txt", DateTime.Now.ToShortTimeString() + "-Before init texture");
-            texA = new SharpDX.Direct3D9.Texture(
-                      device9.Value.Device,
-                      bitmapInfo.Width,
-                      bitmapInfo.Height,
-                              0,
-                              SharpDX.Direct3D9.Usage.Dynamic,
-                              SharpDX.Direct3D9.Format.A8R8G8B8,
-                              Pool.SystemMemory);
-            var data = texA.LockRectangle(0, LockFlags.None);
-            if (bitmapInfo.BackBufferHandle != IntPtr.Zero)
-                lock (bitmapInfo.BitmapLock)
-                {
-                    CopyMemory(data.DataPointer, bitmapInfo.BackBufferHandle, (uint)bitmapInfo.NumberOfBytes);
-                }
-            texA.UnlockRectangle(0);
-
-            tex = new SharpDX.Direct3D9.Texture(
-               device9.Value.Device,
-               bitmapInfo.Width,
-               bitmapInfo.Height,
-                       0,
-                       SharpDX.Direct3D9.Usage.RenderTarget,
-                       SharpDX.Direct3D9.Format.A8R8G8B8,
-                       Pool.Default);
-            texHeight = bitmapInfo.Height;
-            texWidth = bitmapInfo.Width;
-            IsDirectXInitialized = true;
-            //File.AppendAllText("Log.txt", DateTime.Now.ToShortTimeString() + "-After init texture");
-        }
-
-
-
-        private void DirectXRender(BitmapInfo bitmapInfo)
-        {
-            if (bitmapInfo != null)
-            {
-                if (bitmapInfo.IsPopup)
-                {
-                    CurrentPopup = bitmapInfo;
-                    OnPaint(LastInfo);
-                }
-                else
-                {
-                    var info = bitmapInfo;
-                    LastInfo = bitmapInfo;
-                    if (!IsDirectXInitialized)
-                    {
-                        //popup = null;
-                        InitTextures(info);
-                    }
-                    else if (texHeight != info.Height || texWidth != info.Width)
-                    {
-                        var bitmapLock = info.BitmapLock;
-                        UiThreadRunAsync(delegate
-                        {
-                            lock (bitmapLock)
-                            {
-                                ReInitTextures(info);
-                            }
-                        });
-                        return;
-                    }
-                    else
-                    {
-                        lock (info.BitmapLock)
-                        {
-                            var sec = DateTime.Now.Second;
-                            if (Framerate_LastSecond != sec)
-                            {
-                                Framerate_FramerateValue = Framerate_FrameCountByDelta;
-                                Framerate_LastSecond = sec;
-                                Framerate_FrameCountByDelta = 1;
-                            }
-                            else
-                            {
-                                Framerate_FrameCountByDelta++;
-                            }
-
-                            var data = texA.LockRectangle(0, LockFlags.None);
-                            if (info.BackBufferHandle != IntPtr.Zero)
-                                if (PopupVisibility == false && CurrentPopup != null)
-                                {
-                                    //Case of a total redraw, to be sure :)
-                                    CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.NumberOfBytes);
-                                    CurrentPopup = null;
-                                }
-                                else
-                                {
-                                    if (info.DirtyRectSupport)
-                                    {
-                                        //Only copy part that has changed like : 
-                                        //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                                        //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                                        //OOOOOOOOOOOOOOUUU-----------------------
-                                        //--------------UUU-----------------------
-                                        //--------------UUUOOOOOOOOOOOOOOOOOOOOOOO
-                                        //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                                        //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                                        //U : pixel that have changed in the image
-                                        //Only byte with U and - are copied in only one pass
-                                        CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.DirtyRect, info);
-                                    }
-                                    else
-                                    {
-                                        //Copy everithing. no dirty rect
-                                        CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.NumberOfBytes);
-                                    }
-
-                                    if (PopupVisibility == true && CurrentPopup != null)
-                                    {
-                                        CopyMemoryGentle(CurrentPopup.BackBufferHandle, data.DataPointer, CurrentPopup, info);
-                                    }
-                                }
-                            texA.UnlockRectangle(0);
-                        }
-
-                        device9.Value.Device.UpdateTexture(texA, tex);
-
-                        UiThreadRunAsync(delegate
-                        {
-                            if (!(image.Source is DXImageSource))
-                            {
-                                lock (this)
-                                {
-                                    src = new DXImageSource();
-                                    src.OnContextRetreived += Src_OnContextRetreived;
-                                    src.SetBackBuffer(tex);
-                                    image.Source = src;
-                                }
-                            }
-                            else
-                            {
-                                src.Invalidate();
-                            }
-                            hasBeenRendered = true;
-                        },
-                    DispatcherPriority.Render);
-                    }
-                }
-            }
-        }
-
-        private void Src_OnContextRetreived(object sender, EventArgs e)
-        {
-            ReInitTextures(LastInfo);
-        }
-
-        private void CopyMemoryGentle(IntPtr source, IntPtr destination, long startIndexSource, long startIndexDestination, int length)
-        {
-            CopyMemory(new IntPtr(destination.ToInt64() + startIndexDestination), new IntPtr(source.ToInt64() + startIndexSource), (uint)length);
-        }
-
-        private void CopyMemoryGentle(IntPtr source, IntPtr destination, long startIndexDestination, int length)
-        {
-            CopyMemory(new IntPtr(destination.ToInt64() + startIndexDestination), source, (uint)length);
-        }
-
-        private void CopyMemoryGentle(IntPtr source, IntPtr destination, int length)
-        {
-            CopyMemory(destination, source, (uint)length);
-        }
-
-        private void CopyMemoryGentle(IntPtr source, IntPtr destination, Rect dirtyRect, BitmapInfo info)
-        {
-            IntPtr newDestination = new IntPtr(destination.ToInt64() + dirtyRect.Y * info.Width * info.BytesPerPixel + dirtyRect.X * info.BytesPerPixel);
-            IntPtr newSource = new IntPtr(source.ToInt64() + dirtyRect.Y * info.Width * info.BytesPerPixel + dirtyRect.X * info.BytesPerPixel);
-            int length = (dirtyRect.Height - 1) * info.Width * info.BytesPerPixel + dirtyRect.Width * info.BytesPerPixel;
-            CopyMemory(newDestination, newSource, (uint)length);
-        }
-
-        private void CopyMemoryGentle(IntPtr source, IntPtr destination, BitmapInfo popup, BitmapInfo info)
-        {
-            for (int i = 0; i < popup.Height; i++)
-            {
-                CopyMemory(
-                    new IntPtr(destination.ToInt64() + (CurrentPopupPosition.Y + i) * info.Width * info.BytesPerPixel + CurrentPopupPosition.X * popup.BytesPerPixel),
-                    new IntPtr(popup.BackBufferHandle.ToInt64() + i * popup.Width * popup.BytesPerPixel),
-                    (uint)(popup.Width * popup.BytesPerPixel));
-            }
-        }
-
-
-        //END OF DX MOD
-
-        //TOUCH MOD
-
-        int oldX = 0;
-        int oldY = 0;
-
-        public void TouchMove(TouchEventArgs e)
-        {
-            var tp = e.GetTouchPoint(this);
-            int tempX = (int)tp.Position.X;
-            int tempY = (int)tp.Position.Y;
-
-            if (oldX != tempX || oldY != tempY)
-            {
-                oldX = tempX; oldY = tempY;
-                browser.SendTouchEvent(tp.TouchDevice.Id, tempX, tempY, 2, CefEventFlags.None);
-                base.OnTouchMove(e);
-            }
-            e.Handled = true;
-        }
-        public void TouchUp(TouchEventArgs e)
-        {
-            oldX = 0;
-            oldY = 0;
-            var tp = e.GetTouchPoint(this);
-            browser.SendTouchEvent(tp.TouchDevice.Id, (int)tp.Position.X, (int)tp.Position.Y, 0, CefEventFlags.None);
-            this.ReleaseTouchCapture(e.TouchDevice);
-            base.OnTouchUp(e);
-            e.Handled = true;
-        }
-
-        protected void TouchDown(TouchEventArgs e)
-        {
-            Focus();
-            this.CaptureTouch(e.TouchDevice);
-            var tp = e.GetTouchPoint(this);
-            browser.SendTouchEvent(tp.TouchDevice.Id, (int)tp.Position.X, (int)tp.Position.Y, 1, CefEventFlags.None);
-            e.Handled = true;
-        }
-        //END OF TOUCH MOD
-
         /// <summary>
         /// The source
         /// </summary>
         private HwndSource source;
+        /// <summary>
+        /// The HwndSource RootVisual (Window) - We store a reference
+        /// to unsubscribe event handlers
+        /// </summary>
+        private Window sourceWindow;
         /// <summary>
         /// The tooltip timer
         /// </summary>
@@ -427,6 +102,12 @@ namespace CefSharp.Wpf
         /// user attempts to set after browser created)
         /// </summary>
         private IRequestContext requestContext;
+        /// <summary>
+        /// Keep a short term copy of IDragData, so when calling DoDragDrop, DragEnter is called, 
+        /// we can reuse the drag data provided from CEF
+        /// </summary>
+        private IDragData currentDragData;
+
         /// <summary>
         /// A flag that indicates whether or not the designer is active
         /// NOTE: Needs to be static for OnApplicationExit
@@ -525,15 +206,10 @@ namespace CefSharp.Wpf
         /// <value>The resource handler factory.</value>
         public IResourceHandlerFactory ResourceHandlerFactory { get; set; }
         /// <summary>
-        /// Implement <see cref="IGeolocationHandler" /> and assign to handle requests for permission to use geolocation.
+        /// Implement <see cref="IRenderHandler"/> and control how the control is rendered
         /// </summary>
-        /// <value>The geolocation handler.</value>
-        public IGeolocationHandler GeolocationHandler { get; set; }
-        /// <summary>
-        /// Gets or sets the bitmap factory.
-        /// </summary>
-        /// <value>The bitmap factory.</value>
-        public IBitmapFactory BitmapFactory { get; set; }
+        /// <value>The render Handler.</value>
+        public IRenderHandler RenderHandler { get; set; }
         /// <summary>
         /// Implement <see cref="IRenderProcessMessageHandler" /> and assign to handle messages from the render process.
         /// </summary>
@@ -606,9 +282,12 @@ namespace CefSharp.Wpf
         public event EventHandler<LoadingStateChangedEventArgs> LoadingStateChanged;
 
         /// <summary>
-        /// Raised before each render cycle, and allows you to adjust the bitmap before it's rendered/applied
+        /// Raised every time <see cref="IRenderWebBrowser.OnPaint"/> is called. You can access the underlying buffer, though it's
+        /// preferable to either override <see cref="OnPaint"/> or implement your own <see cref="IRenderHandler"/> as there is no outwardly
+        /// accessible locking (locking is done within the default <see cref="IRenderHandler"/> implementations).
+        /// It's important to note this event is fired on a CEF UI thread, which by default is not the same as your application UI thread
         /// </summary>
-        public event EventHandler<RenderingEventArgs> Rendering;
+        public event EventHandler<PaintEventArgs> Paint;
 
         /// <summary>
         /// Navigates to the previous page in the browser history. Will automatically be enabled/disabled depending on the
@@ -736,9 +415,6 @@ namespace CefSharp.Wpf
             {
                 NoInliningConstructor();
             }
-
-            popupPosition = new Point();
-            popupSize = new Size();
         }
 
         /// <summary>
@@ -750,11 +426,20 @@ namespace CefSharp.Wpf
         private void NoInliningConstructor()
         {
             //Initialize CEF if it hasn't already been initialized
-            if (!Cef.IsInitialized && !Cef.Initialize())
+            if (!Cef.IsInitialized)
             {
-                throw new InvalidOperationException("Cef::Initialize() failed");
-            }
+                //Disable TouchpadAndWheelScrollLatching
+                //Workaround for #2408
+                var settings = new CefSettings();
+                settings.DisableTouchpadAndWheelScrollLatching();
+                settings.WindowlessRenderingEnabled = true;
 
+                if (!Cef.Initialize(settings))
+                {
+                    throw new InvalidOperationException("Cef::Initialize() failed");
+                }
+            }
+            
             //Add this ChromiumWebBrowser instance to a list of IDisposable objects
             // that if still alive at the time Cef.Shutdown is called will be disposed of
             // It's important all browser instances be freed before Cef.Shutdown is called.
@@ -805,10 +490,10 @@ namespace CefSharp.Wpf
 
             ResourceHandlerFactory = new DefaultResourceHandlerFactory();
             BrowserSettings = new BrowserSettings();
-            BitmapFactory = new BitmapFactory();
+            RenderHandler = new InteropBitmapRenderHandler();
 
             WpfKeyboardHandler = new WpfKeyboardHandler(this);
-
+            
             PresentationSource.AddSourceChangedHandler(this, PresentationSourceChangedHandler);
 
             RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.HighQuality);
@@ -852,11 +537,14 @@ namespace CefSharp.Wpf
             {
                 // No longer reference event listeners:
                 ConsoleMessage = null;
-                FrameLoadStart = null;
                 FrameLoadEnd = null;
+                FrameLoadStart = null;
+                IsBrowserInitializedChanged = null;
                 LoadError = null;
                 LoadingStateChanged = null;
-                Rendering = null;
+                Paint = null;
+                StatusMessage = null;
+                TitleChanged = null;
 
                 if (isDisposing)
                 {
@@ -867,7 +555,22 @@ namespace CefSharp.Wpf
                         BrowserSettings = null;
                     }
 
+                    //Incase we accidentally have a reference to the CEF drag data
+                    if(currentDragData != null)
+                    {
+                        currentDragData.Dispose();
+                        currentDragData = null;
+                    }
+
                     PresentationSource.RemoveSourceChangedHandler(this, PresentationSourceChangedHandler);
+                    // Release window event listeners if PresentationSourceChangedHandler event wasn't
+                    // fired before Dispose
+                    if (sourceWindow != null)
+                    {
+                        sourceWindow.StateChanged -= OnWindowStateChanged;
+                        sourceWindow.LocationChanged -= OnWindowLocationChanged;
+                        sourceWindow = null;
+                    }
 
                     // Release internal event listeners:
                     Loaded -= OnLoaded;
@@ -883,7 +586,7 @@ namespace CefSharp.Wpf
 
                     IsVisibleChanged -= OnIsVisibleChanged;
 
-                    if (popup != null)
+                    if(popup != null)
                     {
                         popup.Opened -= PopupOpened;
                         popup.Closed -= PopupClosed;
@@ -902,7 +605,7 @@ namespace CefSharp.Wpf
                         CleanupElement.Unloaded -= OnCleanupElementUnloaded;
                     }
 
-                    if (managedCefBrowserAdapter != null)
+                    if(managedCefBrowserAdapter != null)
                     {
                         managedCefBrowserAdapter.Dispose();
                         managedCefBrowserAdapter = null;
@@ -932,7 +635,7 @@ namespace CefSharp.Wpf
         /// Gets the ScreenInfo - currently used to get the DPI scale factor.
         /// </summary>
         /// <returns>ScreenInfo containing the current DPI scale factor</returns>
-        ScreenInfo IRenderWebBrowser.GetScreenInfo()
+        ScreenInfo? IRenderWebBrowser.GetScreenInfo()
         {
             return GetScreenInfo();
         }
@@ -941,7 +644,7 @@ namespace CefSharp.Wpf
         /// Gets the ScreenInfo - currently used to get the DPI scale factor.
         /// </summary>
         /// <returns>ScreenInfo containing the current DPI scale factor</returns>
-        protected virtual ScreenInfo GetScreenInfo()
+        protected virtual ScreenInfo? GetScreenInfo()
         {
             var screenInfo = new ScreenInfo(scaleFactor: (float)DpiScaleFactor);
 
@@ -952,7 +655,7 @@ namespace CefSharp.Wpf
         /// Gets the view rect (width, height)
         /// </summary>
         /// <returns>ViewRect.</returns>
-        ViewRect IRenderWebBrowser.GetViewRect()
+        ViewRect? IRenderWebBrowser.GetViewRect()
         {
             return GetViewRect();
         }
@@ -961,7 +664,7 @@ namespace CefSharp.Wpf
         /// Gets the view rect (width, height)
         /// </summary>
         /// <returns>ViewRect.</returns>
-        protected virtual ViewRect GetViewRect()
+        protected virtual ViewRect? GetViewRect()
         {
             //NOTE: Previous we used Math.Ceiling to round the sizing up, we
             //now set UseLayoutRounding = true; on the control so the sizes are
@@ -978,7 +681,7 @@ namespace CefSharp.Wpf
 
             //We manually claculate the screen point as calling PointToScreen can only be called on the UI thread
             // in a sync fashion and it's easy for users to get themselves into a deadlock.
-            if (DpiScaleFactor > 1)
+            if(DpiScaleFactor > 1)
             {
                 screenX = (int)(browserScreenLocation.X + (viewX * DpiScaleFactor));
                 screenY = (int)(browserScreenLocation.Y + (viewY * DpiScaleFactor));
@@ -992,48 +695,28 @@ namespace CefSharp.Wpf
             return true;
         }
 
-        /// Creates the BitmapInfo instance used for rendering. Two instances
-        /// will be created, one will be used for the popup
-        /// </summary>
-        /// <param name="isPopup">if set to <c>true</c> [is popup].</param>
-        /// <returns>BitmapInfo.</returns>
-        /// <exception cref="System.Exception">BitmapFactory cannot be null</exception>
-        BitmapInfo IRenderWebBrowser.CreateBitmapInfo(bool isPopup)
-        {
-            return CreateBitmapInfo(isPopup);
-        }
-
         /// <summary>
-        /// Creates the BitmapInfo instance used for rendering. Two instances
-        /// will be created, one will be used for the popup
+        /// Called when the user starts dragging content in the web view. 
+        /// OS APIs that run a system message loop may be used within the StartDragging call.
+        /// Don't call any of IBrowserHost::DragSource*Ended* methods after returning false.
+        /// Call IBrowserHost.DragSourceEndedAt and DragSourceSystemDragEnded either synchronously or asynchronously to inform the web view that the drag operation has ended. 
         /// </summary>
-        /// <param name="isPopup">if set to <c>true</c> [is popup].</param>
-        /// <returns>BitmapInfo.</returns>
-        /// <exception cref="System.Exception">BitmapFactory cannot be null</exception>
-        protected virtual BitmapInfo CreateBitmapInfo(bool isPopup)
-        {
-            if (BitmapFactory == null)
-            {
-                throw new Exception("BitmapFactory cannot be null");
-            }
-            return BitmapFactory.CreateBitmap(isPopup, DpiScaleFactor);
-        }
-
-        /// <summary>
-        /// Starts the dragging.
-        /// </summary>
-        /// <param name="dragData">The drag data.</param>
-        /// <param name="mask">The mask.</param>
-        /// <param name="x">The x.</param>
-        /// <param name="y">The y.</param>
-        /// <returns><c>true</c> if XXXX, <c>false</c> otherwise.</returns>
-        bool IRenderWebBrowser.StartDragging(IDragData dragData, DragOperationsMask mask, int x, int y)
+        /// <param name="dragData"> Contextual information about the dragged content</param>
+        /// <param name="allowedOps">allowed operations</param>
+        /// <param name="x">is the drag start location in screen coordinates</param>
+        /// <param name="y">is the drag start location in screen coordinates</param>
+        /// <returns>Return true to handle the drag operation.</returns>
+        bool IRenderWebBrowser.StartDragging(IDragData dragData, DragOperationsMask allowedOps, int x, int y)
         {
             var dataObject = new DataObject();
 
             dataObject.SetText(dragData.FragmentText, TextDataFormat.Text);
             dataObject.SetText(dragData.FragmentText, TextDataFormat.UnicodeText);
             dataObject.SetText(dragData.FragmentHtml, TextDataFormat.Html);
+
+            //Clone dragData for use in OnDragEnter event handler
+            currentDragData = dragData.Clone();
+            currentDragData.ResetFileContents();
 
             // TODO: The following code block *should* handle images, but GetFileContents is
             // not yet implemented.
@@ -1048,10 +731,17 @@ namespace CefSharp.Wpf
 
             UiThreadRunAsync(delegate
             {
-                if (browser != null)
+                if(browser != null)
                 {
-                    var results = DragDrop.DoDragDrop(this, dataObject, GetDragEffects(mask));
-                    browser.GetHost().DragSourceEndedAt(0, 0, GetDragOperationsMask(results));
+                    //DoDragDrop will fire DragEnter event
+                    var result = DragDrop.DoDragDrop(this, dataObject, GetDragEffects(allowedOps));
+
+                    //DragData was stored so when DoDragDrop fires DragEnter we reuse a clone of the IDragData provided here
+                    currentDragData = null;
+
+                    //If result == DragDropEffects.None then we'll send DragOperationsMask.None
+                    //effectively cancelling the drag operation
+                    browser.GetHost().DragSourceEndedAt(x, y, GetDragOperationsMask(result));
                     browser.GetHost().DragSourceSystemDragEnded();
                 }
             });
@@ -1061,96 +751,56 @@ namespace CefSharp.Wpf
 
         void IRenderWebBrowser.UpdateDragCursor(DragOperationsMask operation)
         {
+            UpdateDragCursor(operation);
+        }
+
+        protected virtual void UpdateDragCursor(DragOperationsMask operation)
+        {
             //TODO: Someone should implement this
         }
 
         /// <summary>
         /// Called when an element should be painted.
-        /// Pixel values passed to this method are scaled relative to view coordinates based on the value of
-        /// ScreenInfo.DeviceScaleFactor returned from GetScreenInfo. bitmapInfo.IsPopup indicates whether the element is the view
-        /// or the popup widget. BitmapInfo.DirtyRect contains the set of rectangles in pixel coordinates that need to be
-        /// repainted. The bitmap will be will be  width * height *4 bytes in size and represents a BGRA image with an upper-left origin.
-        /// The underlying buffer is copied into the back buffer and is accessible via BackBufferHandle
         /// </summary>
-        /// <param name="bitmapInfo">information about the bitmap to be rendered</param>
-        void IRenderWebBrowser.OnPaint(BitmapInfo bitmapInfo)
+        /// <param name="type">indicates whether the element is the view or the popup widget.</param>
+        /// <param name="dirtyRect">contains the set of rectangles in pixel coordinates that need to be repainted</param>
+        /// <param name="buffer">The bitmap will be will be  width * height *4 bytes in size and represents a BGRA image with an upper-left origin</param>
+        /// <param name="width">width</param>
+        /// <param name="height">height</param>
+        void IRenderWebBrowser.OnPaint(PaintElementType type, Rect dirtyRect, IntPtr buffer, int width, int height)
         {
-            OnPaint(bitmapInfo);
+            OnPaint(type == PaintElementType.Popup, dirtyRect, buffer, width, height);
         }
 
         /// <summary>
-        /// Called when an element should be painted.
-        /// Pixel values passed to this method are scaled relative to view coordinates based on the value of
-        /// ScreenInfo.DeviceScaleFactor returned from GetScreenInfo. bitmapInfo.IsPopup indicates whether the element is the view
-        /// or the popup widget. BitmapInfo.DirtyRect contains the set of rectangles in pixel coordinates that need to be
-        /// repainted. The bitmap will be will be  width * height *4 bytes in size and represents a BGRA image with an upper-left origin.
-        /// The underlying buffer is copied into the back buffer and is accessible via BackBufferHandle
+        /// Called when an element should be painted. Pixel values passed to this method are scaled relative to view coordinates based on the
+        /// value of <see cref="ScreenInfo.DeviceScaleFactor"/> returned from <see cref="IRenderWebBrowser.GetScreenInfo"/>. To override the default behaviour
+        /// override this method or implement your own <see cref="IRenderHandler"/> and assign to <see cref="RenderHandler"/>
+        /// Called on the CEF UI Thread
         /// </summary>
-        /// <param name="bitmapInfo">information about the bitmap to be rendered</param>
-        protected virtual void OnPaint(BitmapInfo bitmapInfo)
+        /// <param name="type">indicates whether the element is the view or the popup widget.</param>
+        /// <param name="dirtyRect">contains the set of rectangles in pixel coordinates that need to be repainted</param>
+        /// <param name="buffer">The bitmap will be will be  width * height *4 bytes in size and represents a BGRA image with an upper-left origin</param>
+        /// <param name="width">width</param>
+        /// <param name="height">height</param>
+        protected virtual void OnPaint(bool isPopup, Rect dirtyRect, IntPtr buffer, int width, int height)
         {
-            try
+            var paint = Paint;
+            if (paint != null)
             {
-                if (IsDirectXRendering)
-                {
-                    DirectXRender(bitmapInfo);
-                }
-                else
-                {
-                    BitmapRender(bitmapInfo);
-                }
+                var args = new PaintEventArgs(isPopup, dirtyRect, buffer, width, height);
 
-            }
-            catch (Exception e)
-            {
-                if (DirectXNotCreated != null && FirstDirectXInitialization)
+                paint(this, args);
+
+                if(args.Handled)
                 {
-                    DirectXNotCreated("Webbrowser : Exception on rendering " + e.ToString());
-                }
-
-                if (DirectXLost != null && DirectXLostWarned == false)
-                {
-                    DirectXLostWarned = true;
-                    DirectXLost("Webbrowser : Exception on rendering " + e.ToString());
-                }
-
-
-
-                if (IsDirectXRendering)
-                {
-                    //Unable to render. Maybe context lost..
-                    IsDirectXInitialized = false;
+                    return;
                 }
             }
 
-            FirstDirectXInitialization = false;
-        }
+            var img = isPopup ? popupImage : image;
 
-        private void BitmapRender(BitmapInfo bitmapInfo)
-        {
-            UiThreadRunAsync(delegate
-                {
-                    lock (bitmapInfo.BitmapLock)
-                    {
-                        var wpfBitmapInfo = (WpfBitmapInfo)bitmapInfo;
-                        // Inform parents that the browser rendering is updating
-                        OnRendering(this, wpfBitmapInfo);
-
-                        // Now update the WPF image
-                        if (wpfBitmapInfo.CreateNewBitmap)
-                        {
-                            var img = bitmapInfo.IsPopup ? popupImage : image;
-
-                            img.Source = null;
-                            GC.Collect(1);
-
-                            img.Source = wpfBitmapInfo.CreateBitmap();
-                        }
-
-                        wpfBitmapInfo.Invalidate();
-                    }
-                },
-                DispatcherPriority.Render);
+            RenderHandler?.OnPaint(isPopup, dirtyRect, buffer, width, height, img);
         }
 
         /// <summary>
@@ -1160,27 +810,18 @@ namespace CefSharp.Wpf
         /// <param name="height">The height.</param>
         /// <param name="x">The x.</param>
         /// <param name="y">The y.</param>
-        void IRenderWebBrowser.SetPopupSizeAndPosition(int width, int height, int x, int y)
+        void IRenderWebBrowser.OnPopupSize(Rect rect)
         {
-            UiThreadRunAsync(() => { SetPopupSizeAndPositionImpl(width, height, x, y); PopupVisibility = true; });
+            UiThreadRunAsync(() => SetPopupSizeAndPositionImpl(rect));
         }
 
         /// <summary>
         /// Sets the popup is open.
         /// </summary>
         /// <param name="isOpen">if set to <c>true</c> [is open].</param>
-        void IRenderWebBrowser.SetPopupIsOpen(bool isOpen)
+        void IRenderWebBrowser.OnPopupShow(bool isOpen)
         {
-            if (!isOpen)
-            {
-                PopupJustOpened = false;
-            }
-            else if (isOpen)
-            {
-                PopupJustOpened = true;
-            }
-
-            PopupVisibility = isOpen; UiThreadRunAsync(() => { popup.IsOpen = isOpen; });
+            UiThreadRunAsync(() => { popup.IsOpen = isOpen; });
         }
 
         /// <summary>
@@ -1188,7 +829,7 @@ namespace CefSharp.Wpf
         /// </summary>
         /// <param name="handle">The handle.</param>
         /// <param name="type">The type.</param>
-        void IRenderWebBrowser.SetCursor(IntPtr handle, CursorType type)
+        void IRenderWebBrowser.OnCursorChange(IntPtr handle, CursorType type, CursorInfo customCursorInfo)
         {
             //Custom cursors are handled differently, for now keep standard ones executing
             //in an async fashion
@@ -1256,11 +897,7 @@ namespace CefSharp.Wpf
                 ((DelegateCommand)ReloadCommand).RaiseCanExecuteChanged();
             });
 
-            var handler = LoadingStateChanged;
-            if (handler != null)
-            {
-                handler(this, args);
-            }
+            LoadingStateChanged?.Invoke(this, args);
         }
 
         /// <summary>
@@ -1287,11 +924,7 @@ namespace CefSharp.Wpf
         /// <param name="args">The <see cref="FrameLoadStartEventArgs"/> instance containing the event data.</param>
         void IWebBrowserInternal.OnFrameLoadStart(FrameLoadStartEventArgs args)
         {
-            var handler = FrameLoadStart;
-            if (handler != null)
-            {
-                handler(this, args);
-            }
+            FrameLoadStart?.Invoke(this, args);
         }
 
         /// <summary>
@@ -1300,12 +933,7 @@ namespace CefSharp.Wpf
         /// <param name="args">The <see cref="FrameLoadEndEventArgs"/> instance containing the event data.</param>
         void IWebBrowserInternal.OnFrameLoadEnd(FrameLoadEndEventArgs args)
         {
-            var handler = FrameLoadEnd;
-
-            if (handler != null)
-            {
-                handler(this, args);
-            }
+            FrameLoadEnd?.Invoke(this, args);
         }
 
         /// <summary>
@@ -1314,11 +942,7 @@ namespace CefSharp.Wpf
         /// <param name="args">The <see cref="ConsoleMessageEventArgs"/> instance containing the event data.</param>
         void IWebBrowserInternal.OnConsoleMessage(ConsoleMessageEventArgs args)
         {
-            var handler = ConsoleMessage;
-            if (handler != null)
-            {
-                handler(this, args);
-            }
+            ConsoleMessage?.Invoke(this, args);
         }
 
         /// <summary>
@@ -1327,11 +951,7 @@ namespace CefSharp.Wpf
         /// <param name="args">The <see cref="StatusMessageEventArgs"/> instance containing the event data.</param>
         void IWebBrowserInternal.OnStatusMessage(StatusMessageEventArgs args)
         {
-            var handler = StatusMessage;
-            if (handler != null)
-            {
-                handler(this, args);
-            }
+            StatusMessage?.Invoke(this, args);
         }
 
         /// <summary>
@@ -1340,11 +960,7 @@ namespace CefSharp.Wpf
         /// <param name="args">The <see cref="LoadErrorEventArgs"/> instance containing the event data.</param>
         void IWebBrowserInternal.OnLoadError(LoadErrorEventArgs args)
         {
-            var handler = LoadError;
-            if (handler != null)
-            {
-                handler(this, args);
-            }
+            LoadError?.Invoke(this, args);
         }
 
         void IWebBrowserInternal.SetCanExecuteJavascriptOnMainFrame(bool canExecute)
@@ -1542,12 +1158,7 @@ namespace CefSharp.Wpf
 
             owner.OnIsBrowserInitializedChanged(oldValue, newValue);
 
-            var handlers = owner.IsBrowserInitializedChanged;
-
-            if (handlers != null)
-            {
-                handlers(owner, e);
-            }
+            owner.IsBrowserInitializedChanged?.Invoke(owner, e);
         }
 
         /// <summary>
@@ -1615,12 +1226,7 @@ namespace CefSharp.Wpf
         {
             var owner = (ChromiumWebBrowser)d;
 
-            var handlers = owner.TitleChanged;
-
-            if (handlers != null)
-            {
-                handlers(owner, e);
-            }
+            owner.TitleChanged?.Invoke(owner, e);
         }
 
         #endregion Title dependency property
@@ -1791,12 +1397,12 @@ namespace CefSharp.Wpf
             {
                 UiThreadRunAsync(() => UpdateTooltip(null), DispatcherPriority.Render);
 
-                if (timer.IsEnabled)
+                if(timer.IsEnabled)
                 {
                     timer.Stop();
                 }
             }
-            else if (!timer.IsEnabled)
+            else if(!timer.IsEnabled)
             {
                 timer.Start();
             }
@@ -1831,9 +1437,13 @@ namespace CefSharp.Wpf
         /// <param name="e">The <see cref="DragEventArgs"/> instance containing the event data.</param>
         private void OnDrop(object sender, DragEventArgs e)
         {
-            if (browser != null)
+            if(browser != null)
             {
-                browser.GetHost().DragTargetDragDrop(GetMouseEvent(e));
+                var mouseEvent = GetMouseEvent(e);
+                var effect = GetDragOperationsMask(e.AllowedEffects);
+
+                browser.GetHost().DragTargetDragOver(mouseEvent, effect);
+                browser.GetHost().DragTargetDragDrop(mouseEvent);
             }
         }
 
@@ -1844,7 +1454,7 @@ namespace CefSharp.Wpf
         /// <param name="e">The <see cref="DragEventArgs"/> instance containing the event data.</param>
         private void OnDragLeave(object sender, DragEventArgs e)
         {
-            if (browser != null)
+            if(browser != null)
             {
                 browser.GetHost().DragTargetDragLeave();
             }
@@ -1857,7 +1467,7 @@ namespace CefSharp.Wpf
         /// <param name="e">The <see cref="DragEventArgs"/> instance containing the event data.</param>
         private void OnDragOver(object sender, DragEventArgs e)
         {
-            if (browser != null)
+            if(browser != null)
             {
                 browser.GetHost().DragTargetDragOver(GetMouseEvent(e), GetDragOperationsMask(e.AllowedEffects));
             }
@@ -1870,9 +1480,17 @@ namespace CefSharp.Wpf
         /// <param name="e">The <see cref="DragEventArgs"/> instance containing the event data.</param>
         private void OnDragEnter(object sender, DragEventArgs e)
         {
-            if (browser != null)
+            if(browser != null)
             {
-                browser.GetHost().DragTargetDragEnter(e.GetDragDataWrapper(), GetMouseEvent(e), GetDragOperationsMask(e.AllowedEffects));
+                var mouseEvent = GetMouseEvent(e);
+                var effect = GetDragOperationsMask(e.AllowedEffects);
+
+                //DoDragDrop will fire this handler for internally sourced Drag/Drop operations
+                //we use the existing IDragData (cloned copy)
+                var dragData = currentDragData ?? e.GetDragDataWrapper();
+
+                browser.GetHost().DragTargetDragEnter(dragData, mouseEvent, effect);
+                browser.GetHost().DragTargetDragOver(mouseEvent, effect);
             }
         }
 
@@ -1959,14 +1577,31 @@ namespace CefSharp.Wpf
                         browser.GetHost().NotifyScreenInfoChanged();
                     }
 
-                    var window = source.RootVisual as Window;
-                    if (window != null)
+                    //Ignore this for custom bitmap factories
+                    if (RenderHandler != null && (RenderHandler.GetType() == typeof(WritableBitmapRenderHandler) || RenderHandler.GetType() == typeof(InteropBitmapRenderHandler)))
                     {
-                        window.StateChanged += WindowStateChanged;
-                        window.LocationChanged += OnWindowLocationChanged;
+                        if (DpiScaleFactor > 1.0 && RenderHandler.GetType() != typeof(WritableBitmapRenderHandler))
+                        {
+                            const int DefaultDpi = 96;
+                            var scale = DefaultDpi * DpiScaleFactor;
+
+                            RenderHandler = new WritableBitmapRenderHandler(scale, scale);
+                        }
+                        else if (DpiScaleFactor == 1.0 && RenderHandler.GetType() != typeof(InteropBitmapRenderHandler))
+                        {
+                            RenderHandler = new InteropBitmapRenderHandler();
+                        }
                     }
 
-                    UpdateBrowserScreenLocation();
+                    var window = source.RootVisual as Window;
+                    if(window != null)
+                    {
+                        window.StateChanged += OnWindowStateChanged;
+                        window.LocationChanged += OnWindowLocationChanged;
+                        sourceWindow = window;
+                    }
+
+                    browserScreenLocation = GetBrowserScreenLocation();
                 }
             }
             else if (args.OldSource != null)
@@ -1976,13 +1611,14 @@ namespace CefSharp.Wpf
                 var window = args.OldSource.RootVisual as Window;
                 if (window != null)
                 {
-                    window.StateChanged -= WindowStateChanged;
+                    window.StateChanged -= OnWindowStateChanged;
                     window.LocationChanged -= OnWindowLocationChanged;
+                    sourceWindow = null;
                 }
             }
         }
 
-        private void WindowStateChanged(object sender, EventArgs e)
+        private void OnWindowStateChanged(object sender, EventArgs e)
         {
             var window = (Window)sender;
 
@@ -1990,29 +1626,40 @@ namespace CefSharp.Wpf
             {
                 case WindowState.Normal:
                 case WindowState.Maximized:
+                {
+                    if (browser != null)
                     {
-                        if (browser != null)
-                        {
-                            browser.GetHost().WasHidden(false);
-                        }
-                        break;
+                        browser.GetHost().WasHidden(false);
                     }
+                    break;
+                }
                 case WindowState.Minimized:
+                {
+                    if (browser != null)
                     {
-                        if (browser != null)
-                        {
-                            browser.GetHost().WasHidden(true);
-                        }
-                        break;
+                        browser.GetHost().WasHidden(true);
                     }
+                    break;
+                }
             }
         }
 
-        private void UpdateBrowserScreenLocation()
+        /// <summary>
+        /// Called when the Window Location Changes, the PresentationSource changes
+        /// and the page loads. We manually track the position as CEF makes calls
+        /// on a non-UI thread and calling Invoke in IRenderWebBrowser.GetScreenPoint
+        /// makes it very easy to deadlock the browser.
+        /// </summary>
+        /// <returns>Returns screen coordinates of the browsers location</returns>
+        protected virtual Point GetBrowserScreenLocation()
         {
             if (source != null && PresentationSource.FromVisual(this) != null)
             {
-                browserScreenLocation = PointToScreen(new Point());
+                return PointToScreen(new Point());
+            }
+            else
+            {
+                return new Point();
             }
         }
 
@@ -2020,7 +1667,7 @@ namespace CefSharp.Wpf
         {
             //We maintain a manual reference to the controls screen location
             //(relative to top/left of the screen)
-            UpdateBrowserScreenLocation();
+            browserScreenLocation = GetBrowserScreenLocation();
         }
 
         /// <summary>
@@ -2042,7 +1689,6 @@ namespace CefSharp.Wpf
             var webBrowserInternal = this as IWebBrowserInternal;
             if (!webBrowserInternal.HasParent)
             {
-                BrowserSettings.WindowlessFrameRate = WindowLessFramerate;
                 managedCefBrowserAdapter.CreateOffscreenBrowser(source == null ? IntPtr.Zero : source.Handle, BrowserSettings, (RequestContext)RequestContext, Address);
             }
             browserCreated = true;
@@ -2111,7 +1757,26 @@ namespace CefSharp.Wpf
 
             if (browser != null)
             {
-                browser.GetHost().WasHidden(!isVisible);
+                var host = browser.GetHost();
+                host.WasHidden(!isVisible);
+
+                if (isVisible)
+                {
+                    //Fix for #1778 - When browser becomes visible we update the zoom level
+                    //browsers of the same origin will share the same zoomlevel and
+                    //we need to track the update, so our ZoomLevelProperty works
+                    //properly
+                    host.GetZoomLevelAsync().ContinueWith(t =>
+                    {
+                        if (!IsDisposed)
+                        {
+                            SetCurrentValue(ZoomLevelProperty, t.Result);
+                        }
+                    },
+                    CancellationToken.None,
+                    TaskContinuationOptions.OnlyOnRanToCompletion,
+                    TaskScheduler.FromCurrentSynchronizationContext());
+                }
             }
         }
 
@@ -2160,7 +1825,7 @@ namespace CefSharp.Wpf
             tooltipTimer.IsEnabled = false;
 
             //Initial value for screen location
-            UpdateBrowserScreenLocation();
+            browserScreenLocation = GetBrowserScreenLocation();
         }
 
         /// <summary>
@@ -2220,9 +1885,9 @@ namespace CefSharp.Wpf
                 AllowsTransparency = true
             };
 
-            BindingOperations.SetBinding(newPopup, FrameworkElement.LayoutTransformProperty, new Binding
+            BindingOperations.SetBinding(newPopup, LayoutTransformProperty, new Binding
             {
-                Path = new PropertyPath(FrameworkElement.LayoutTransformProperty),
+                Path = new PropertyPath(LayoutTransformProperty),
                 Source = this,
             });
 
@@ -2250,18 +1915,12 @@ namespace CefSharp.Wpf
         /// <param name="height">The height.</param>
         /// <param name="x">The x.</param>
         /// <param name="y">The y.</param>
-        private void SetPopupSizeAndPositionImpl(int width, int height, int x, int y)
+        private void SetPopupSizeAndPositionImpl(Rect rect)
         {
-            CurrentPopupPosition = new Rect(x, y, width, height);
-            popupPosition.X = x;
-            popupPosition.Y = y;
-            popupSize.Width = width;
-            popupSize.Height = height;
+            popup.Width = rect.Width ;
+            popup.Height = rect.Height;
 
-            popup.Width = width;
-            popup.Height = height;
-
-            var popupOffset = new Point(x, y);
+            var popupOffset = new Point(rect.X, rect.Y);
             var locationFromScreen = PointToScreen(popupOffset);
             popup.HorizontalOffset = locationFromScreen.X / DpiScaleFactor;
             popup.VerticalOffset = locationFromScreen.Y / DpiScaleFactor;
@@ -2279,7 +1938,7 @@ namespace CefSharp.Wpf
             {
                 tooltipTimer.Stop();
 
-                //UpdateTooltip(TooltipText);
+                UpdateTooltip(TooltipText);
             }
         }
 
@@ -2311,7 +1970,7 @@ namespace CefSharp.Wpf
             {
                 // hide old tooltip before showing the new one to update the position
                 if (toolTip.IsOpen)
-                {
+                { 
                     toolTip.IsOpen = false;
                 }
 
@@ -2382,7 +2041,7 @@ namespace CefSharp.Wpf
         /// Handles the <see cref="E:PreviewTextInput" /> event.
         /// </summary>
         /// <param name="e">The <see cref="TextCompositionEventArgs"/> instance containing the event data.</param>
-        protected override void OnPreviewTextInput(TextCompositionEventArgs e)
+        protected override void OnPreviewTextInput(TextCompositionEventArgs e) 
         {
             if (!e.Handled)
             {
@@ -2421,7 +2080,7 @@ namespace CefSharp.Wpf
                 var modifiers = e.GetModifiers();
                 var isShiftKeyDown = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
                 var pointX = (int)point.X;
-                var pointY = (int)point.Y;
+                var pointY= (int)point.Y;
 
                 browser.SendMouseWheelEvent(
                     pointX,
@@ -2429,6 +2088,8 @@ namespace CefSharp.Wpf
                     deltaX: isShiftKeyDown ? e.Delta : 0,
                     deltaY: !isShiftKeyDown ? e.Delta : 0,
                     modifiers: modifiers);
+
+                e.Handled = true;
             }
 
             base.OnMouseWheel(e);
@@ -2502,7 +2163,7 @@ namespace CefSharp.Wpf
                 {
                     browser.GetHost().SendMouseClickEvent((int)point.X, (int)point.Y, MouseButtonType.Left, mouseUp: true, clickCount: 1, modifiers: modifiers);
                 }
-
+                                
                 browser.GetHost().SendMouseMoveEvent((int)point.X, (int)point.Y, true, modifiers);
 
                 ((IWebBrowserInternal)this).SetTooltipText(null);
@@ -2619,11 +2280,11 @@ namespace CefSharp.Wpf
         /// <param name="name">The name of the object. (e.g. "foo", if you want the object to be accessible as window.foo).</param>
         /// <param name="objectToBind">The object to be made accessible to Javascript.</param>
         /// <param name="options">binding options - camelCaseJavascriptNames default to true </param>
-        /// <exception cref="System.Exception">Browser is already initialized. RegisterJsObject must be +
+        /// <exception cref="Exception">Browser is already initialized. RegisterJsObject must be +
         ///                                     called before the underlying CEF browser is created.</exception>
         public void RegisterJsObject(string name, object objectToBind, BindingOptions options = null)
         {
-            if (!CefSharpSettings.LegacyJavascriptBindingEnabled)
+            if(!CefSharpSettings.LegacyJavascriptBindingEnabled)
             {
                 throw new Exception(@"CefSharpSettings.LegacyJavascriptBindingEnabled is currently false,
                                     for legacy binding you must set CefSharpSettings.LegacyJavascriptBindingEnabled = true
@@ -2690,21 +2351,7 @@ namespace CefSharp.Wpf
 
         public IJavascriptObjectRepository JavascriptObjectRepository
         {
-            get { return managedCefBrowserAdapter == null ? null : managedCefBrowserAdapter.JavascriptObjectRepository; }
-        }
-
-        /// <summary>
-        /// Raises Rendering event
-        /// </summary>
-        /// <param name="sender">The sender.</param>
-        /// <param name="bitmapInfo">The bitmap information.</param>
-        protected virtual void OnRendering(object sender, WpfBitmapInfo bitmapInfo)
-        {
-            var rendering = Rendering;
-            if (rendering != null)
-            {
-                rendering(sender, new RenderingEventArgs(bitmapInfo));
-            }
+            get { return managedCefBrowserAdapter?.JavascriptObjectRepository; }
         }
 
         /// <summary>

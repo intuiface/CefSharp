@@ -233,7 +233,14 @@ namespace CefSharp
         /// <returns>IResourceHandler.</returns>
         public static IResourceHandler FromFilePath(string filePath, string mimeType = null)
         {
-            return new FileResourceHandler(mimeType ?? DefaultMimeType, filePath);
+            if (filePath == null)
+            {
+                throw new ArgumentNullException("filePath");
+            }
+
+            var stream = File.OpenRead(filePath);
+
+            return FromStream(stream, mimeType ?? DefaultMimeType);
         }
 
         /// <summary>
@@ -244,6 +251,11 @@ namespace CefSharp
         /// <returns>IResourceHandler</returns>
         public static IResourceHandler FromByteArray(byte[] data, string mimeType = null)
         {
+            if(data == null)
+            {
+                throw new ArgumentNullException("data", "data cannot be null");
+            }
+
             return new ByteArrayResourceHandler(mimeType ?? DefaultMimeType, data);
         }
 
@@ -270,11 +282,24 @@ namespace CefSharp
         /// <returns>ResourceHandler</returns>
         public static IResourceHandler FromString(string text, Encoding encoding = null, bool includePreamble = true, string mimeType = DefaultMimeType)
         {
-            if(encoding == null)
+            if (text == null)
+            {
+                throw new ArgumentNullException("text");
+            }
+
+            if (string.IsNullOrEmpty(text))
+            {
+                throw new ArgumentException("text cannot be an empty string", "text");
+            }
+
+            if (encoding == null)
             {
                 encoding = Encoding.UTF8;
             }
-            return new ByteArrayResourceHandler(mimeType, GetByteArray(text, encoding, includePreamble));
+
+            var data = GetByteArray(text, encoding, includePreamble);
+
+            return new ByteArrayResourceHandler(mimeType, data);
         }
 
         /// <summary>
@@ -285,6 +310,11 @@ namespace CefSharp
         /// <returns>ResourceHandler</returns>
         public static IResourceHandler ForErrorMessage(string errorMessage, HttpStatusCode statusCode)
         {
+            if (errorMessage == null)
+            {
+                throw new ArgumentNullException("errorMessage");
+            }
+
             var stream = GetMemoryStream(errorMessage, Encoding.UTF8);
 
             var resourceHandler = FromStream(stream);
@@ -301,6 +331,11 @@ namespace CefSharp
         /// <returns>ResourceHandler.</returns>
         public static ResourceHandler FromStream(Stream stream, string mimeType = DefaultMimeType)
         {
+            if (stream == null)
+            {
+                throw new ArgumentNullException("stream");
+            }
+
             return new ResourceHandler(mimeType, stream);
         }
 
@@ -313,6 +348,16 @@ namespace CefSharp
         /// <returns>A memory stream from the given string</returns>
         public static MemoryStream GetMemoryStream(string text, Encoding encoding, bool includePreamble = true)
         {
+            if (text == null)
+            {
+                throw new ArgumentNullException("text");
+            }
+
+            if (encoding == null)
+            {
+                throw new ArgumentNullException("encoding");
+            }
+
             if (includePreamble)
             {
                 var preamble = encoding.GetPreamble();
@@ -340,6 +385,16 @@ namespace CefSharp
         /// <returns>A memory stream from the given string</returns>
         public static byte[] GetByteArray(string text, Encoding encoding, bool includePreamble = true)
         {
+            if (text == null)
+            {
+                throw new ArgumentNullException("text");
+            }
+
+            if (encoding == null)
+            {
+                throw new ArgumentNullException("encoding");
+            }
+
             if (includePreamble)
             {
                 var preamble = encoding.GetPreamble();

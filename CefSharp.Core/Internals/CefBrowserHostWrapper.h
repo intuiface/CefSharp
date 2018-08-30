@@ -10,6 +10,7 @@
 
 using namespace System::Threading::Tasks;
 using namespace CefSharp::Structs;
+using namespace CefSharp::Enums;
 
 namespace CefSharp
 {
@@ -77,8 +78,6 @@ namespace CefSharp
             virtual void SendFocusEvent(bool setFocus);
             virtual void SendKeyEvent(KeyEvent keyEvent);
             virtual void SendKeyEvent(int message, int wParam, int lParam);
-
-			virtual void SendTouchEvent(int id, int x, int y, float force, float radius_x, float radius_y, int eventType, CefEventFlags modifiers);
 
             virtual void SendMouseWheelEvent(MouseEvent mouseEvent, int deltaX, int deltaY);
 

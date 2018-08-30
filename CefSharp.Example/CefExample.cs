@@ -68,9 +68,8 @@ namespace CefSharp.Example
             //settings.CefCommandLineArgs.Add("enable-system-flash", "1"); //Automatically discovered and load a system-wide installation of Pepper Flash.
             //settings.CefCommandLineArgs.Add("allow-running-insecure-content", "1"); //By default, an https page cannot run JavaScript, CSS or plugins from http URLs. This provides an override to get the old insecure behavior. Only available in 47 and above.
 
-            settings.CefCommandLineArgs.Add("touch-events", "enabled");
-            settings.CefCommandLineArgs.Add("enable-logging", "1"); //Enable Logging for the Renderer process (will open with a cmd prompt and output debug messages - use in conjunction with setting LogSeverity = LogSeverity.Verbose;)
-            settings.LogSeverity = LogSeverity.Verbose; // Needed for enable-logging to output messages
+            //settings.CefCommandLineArgs.Add("enable-logging", "1"); //Enable Logging for the Renderer process (will open with a cmd prompt and output debug messages - use in conjunction with setting LogSeverity = LogSeverity.Verbose;)
+            //settings.LogSeverity = LogSeverity.Verbose; // Needed for enable-logging to output messages
 
             //settings.CefCommandLineArgs.Add("disable-extensions", "1"); //Extension support can be disabled
             //settings.CefCommandLineArgs.Add("disable-pdf-extension", "1"); //The PDF extension specifically can be disabled
@@ -100,14 +99,23 @@ namespace CefSharp.Example
             settings.MultiThreadedMessageLoop = multiThreadedMessageLoop;
             settings.ExternalMessagePump = !multiThreadedMessageLoop;
 
+            //Enables Uncaught exception handler
+            settings.UncaughtExceptionStackSize = 10;
+
             // Off Screen rendering (WPF/Offscreen)
             if(osr)
             {
                 settings.WindowlessRenderingEnabled = true;
 
+                //https://github.com/cefsharp/CefSharp/issues/2408
+                settings.DisableTouchpadAndWheelScrollLatching();
+                //This maybe required for scrolling overflow views in iframes 
+                //see https://bitbucket.org/chromiumembedded/cef/issues/2400/scroll-wheel-becomes-non-functional-with#comment-44369181
+                settings.CefCommandLineArgs.Add("disable-blink-features", "RootLayerScrolling");
+
                 //Disable Direct Composition to test https://github.com/cefsharp/CefSharp/issues/1634
                 //settings.CefCommandLineArgs.Add("disable-direct-composition", "1");
-                
+
                 // DevTools doesn't seem to be working when this is enabled
                 // http://magpcss.org/ceforum/viewtopic.php?f=6&t=14095
                 //settings.CefCommandLineArgs.Add("enable-begin-frame-scheduling", "1");
@@ -179,19 +187,29 @@ namespace CefSharp.Example
 
             settings.FocusedNodeChangedEnabled = true;
 
-            if (!Cef.Initialize(settings, performDependencyCheck: !DebuggingSubProcess, browserProcessHandler: browserProcessHandler))
-            {
-                throw new Exception("Unable to Initialize Cef");
-            }
-
-            Cef.AddCrossOriginWhitelistEntry(BaseUrl, "https", "cefsharp.com", false);
-
             //Experimental option where bound async methods are queued on TaskScheduler.Default.
             //CefSharpSettings.ConcurrentTaskExecution = true;
 
             //Legacy Binding Behaviour doesn't work for cross-site navigation (navigating to a different domain)
             //See issue https://github.com/cefsharp/CefSharp/issues/1203 for details
             //CefSharpSettings.LegacyJavascriptBindingEnabled = true;
+
+            //Exit the subprocess if the parent process happens to close
+            //This is optional at the moment
+            //https://github.com/cefsharp/CefSharp/pull/2375/
+            CefSharpSettings.SubprocessExitIfParentProcessClosed = true;
+
+            //NOTE: Set this before any calls to Cef.Initialize to specify a proxy with username and password
+            //One set this cannot be changed at runtime. If you need to change the proxy at runtime (dynamically) then
+            //see https://github.com/cefsharp/CefSharp/wiki/General-Usage#proxy-resolution
+            //CefSharpSettings.Proxy = new ProxyOptions(ip: "127.0.0.1", port: "8080", username: "cefsharp", password: "123");
+
+            if (!Cef.Initialize(settings, performDependencyCheck: !DebuggingSubProcess, browserProcessHandler: browserProcessHandler))
+            {
+                throw new Exception("Unable to Initialize Cef");
+            }
+
+            Cef.AddCrossOriginWhitelistEntry(BaseUrl, "https", "cefsharp.com", false);
         }
 
         public static async void RegisterTestResources(IWebBrowser browser)

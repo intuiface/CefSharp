@@ -1,3 +1,4 @@
+*.dll
 *.exe
 *.exe.config
 *.exe.config
@@ -19,7 +20,9 @@
 *.VC.db
 _ReSharper*
 
+bin/
 obj/
+packages/
 Debug/
 Release/
 CefSharp/app.aps
@@ -31,5 +34,8 @@ CefSharp.Core/x64/Release
 CefSharp/Win32/Release
 CefSharp/x64/Release
 CefSharp.BrowserSubprocess.lib
+Win32/Release
+x64/Release
+Win32/Release
 .vs/
 /Help

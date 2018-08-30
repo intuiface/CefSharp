@@ -66,22 +66,6 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="SharpDX, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\SharpDX.4.0.1\lib\net45\SharpDX.dll</HintPath>
-    </Reference>
-    <Reference Include="SharpDX.Direct3D9, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\SharpDX.Direct3D9.4.0.1\lib\net45\SharpDX.Direct3D9.dll</HintPath>
-    </Reference>
-    <Reference Include="SharpDX.DXGI, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\SharpDX.DXGI.4.0.1\lib\net45\SharpDX.DXGI.dll</HintPath>
-    </Reference>
-    <Reference Include="SharpDX.Mathematics, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\SharpDX.Mathematics.4.0.1\lib\net45\SharpDX.Mathematics.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Core" />
@@ -94,30 +78,25 @@
     <Reference Include="PresentationFramework" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Hack\Cameras.cs" />
-    <Compile Include="Hack\D3D.cs" />
-    <Compile Include="Hack\D3D9.cs" />
-    <Compile Include="Hack\DXImageSource.cs" />
-    <Compile Include="Hack\DXUtils.cs" />
-    <Compile Include="Hack\IDirect3D.cs" />
     <Compile Include="IWpfKeyboardHandler.cs" />
     <Compile Include="Internals\VirtualKeys.cs" />
     <Compile Include="Internals\WpfKeyboardHandler.cs" />
     <Compile Include="Internals\WpfLegacyKeyboardHandler.cs" />
     <Compile Include="DelegateCommand.cs" />
+    <Compile Include="IRenderHandler.cs" />
     <Compile Include="Internals\WpfExtensions.cs" />
-    <Compile Include="Rendering\InteropBitmapInfo.cs" />
     <Compile Include="IWpfWebBrowser.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
     <AppDesigner Include="Properties\" />
     <Compile Include="ChromiumWebBrowser.cs" />
-    <Compile Include="RenderingEventArgs.cs" />
-    <Compile Include="Rendering\BitmapFactory.cs" />
+    <Compile Include="PaintEventArgs.cs" />
+    <Compile Include="Rendering\Experimental\IncreaseBufferInteropRenderHandler.cs" />
+    <Compile Include="Rendering\Experimental\ByteArrayWritableBitmapRenderHandler.cs" />
+    <Compile Include="Rendering\InteropBitmapRenderHandler.cs" />
+    <Compile Include="Rendering\WritableBitmapRenderHandler.cs" />
     <Compile Include="WM.cs" />
-    <Compile Include="Rendering\WpfBitmapInfo.cs" />
-    <Compile Include="Rendering\WritableBitmapInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CefSharp.Core\CefSharp.Core.vcxproj">
