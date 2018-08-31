@@ -34,7 +34,6 @@ namespace CefSharp.Wpf.Rendering
         /// </summary>
         private DXImageSource src;
 
-
         /// <summary>
         /// Try to render in a DirectX texture.
         /// </summary>
@@ -77,18 +76,24 @@ namespace CefSharp.Wpf.Rendering
 
         void ReInitTextures()
         {
-            lock (this)
+            lock (lockObject)
             {
                 var oldTex = tex;
                 var oldTexA = texA;
                 InitTextures();
                 if (src != null)
                 {
-                    src.SetBackBuffer(tex);
+                    CurrentRenderInfo.Image.Dispatcher.BeginInvoke((Action)(() =>
+                    {
+                        lock (lockObject)
+                        {
+                            src.SetBackBuffer(tex);
+                            oldTex.Dispose();
+                            oldTexA.Dispose();
+                        }
+                    }));
                 }
-                oldTex.Dispose();
-                oldTexA.Dispose();
-                DirectXRender();
+                // DirectXRender();
             }
         }
 
@@ -109,7 +114,6 @@ namespace CefSharp.Wpf.Rendering
             var data = texA.LockRectangle(0, LockFlags.None);
             if (CurrentRenderInfo.Buffer != IntPtr.Zero)
                 CopyMemory(data.DataPointer, CurrentRenderInfo.Buffer, (uint)CurrentRenderInfo.NumberOfBytes);
-
             texA.UnlockRectangle(0);
 
             tex = new SharpDX.Direct3D9.Texture(
@@ -144,55 +148,55 @@ namespace CefSharp.Wpf.Rendering
             }
             else
             {
-                    var sec = DateTime.Now.Second;
-                    if (Framerate_LastSecond != sec)
+                var sec = DateTime.Now.Second;
+                if (Framerate_LastSecond != sec)
+                {
+                    Framerate_FramerateValue = Framerate_FrameCountByDelta;
+                    Framerate_LastSecond = sec;
+                    Framerate_FrameCountByDelta = 1;
+                }
+                else
+                {
+                    Framerate_FrameCountByDelta++;
+                }
+
+                var data = texA.LockRectangle(0, LockFlags.None);
+                if (CurrentRenderInfo.Buffer != IntPtr.Zero)
+                    if (PopupVisibility == false && CurrentPopupRenderInfo != null)
                     {
-                        Framerate_FramerateValue = Framerate_FrameCountByDelta;
-                        Framerate_LastSecond = sec;
-                        Framerate_FrameCountByDelta = 1;
+                        //Case of a total redraw, to be sure :)
+                        CopyMemoryGentle(CurrentRenderInfo.Buffer, data.DataPointer, CurrentRenderInfo.NumberOfBytes);
+                        CurrentPopupRenderInfo = null;
                     }
                     else
                     {
-                        Framerate_FrameCountByDelta++;
+                        //if (CurrentRenderInfo.DirtyRect)
+                        {
+                            //Only copy part that has changed like : 
+                            //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                            //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                            //OOOOOOOOOOOOOOUUU-----------------------
+                            //--------------UUU-----------------------
+                            //--------------UUUOOOOOOOOOOOOOOOOOOOOOOO
+                            //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                            //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                            //U : pixel that have changed in the image
+                            //Only byte with U and - are copied in only one pass
+                            CopyMemoryGentle(CurrentRenderInfo.Buffer, data.DataPointer, CurrentRenderInfo.DirtyRect, CurrentRenderInfo);
+                        }
+                        //else
+                        //{
+                        //    //Copy everithing. no dirty rect
+                        //    CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.NumberOfBytes);
+                        //}
+
+                        if (PopupVisibility == true && CurrentPopupRenderInfo != null)
+                        {
+                            CopyMemoryGentle(CurrentPopupRenderInfo.Buffer, data.DataPointer, CurrentPopupRenderInfo.DirtyRect, CurrentPopupRenderInfo);
+                        }
                     }
+                texA.UnlockRectangle(0);
 
-                    var data = texA.LockRectangle(0, LockFlags.None);
-                    if (CurrentRenderInfo.Buffer != IntPtr.Zero)
-                        if (PopupVisibility == false && CurrentPopupRenderInfo != null)
-                        {
-                            //Case of a total redraw, to be sure :)
-                            CopyMemoryGentle(CurrentRenderInfo.Buffer, data.DataPointer, CurrentRenderInfo.NumberOfBytes);
-                            CurrentPopupRenderInfo = null;
-                        }
-                        else
-                        {
-                            //if (CurrentRenderInfo.DirtyRect)
-                            {
-                                //Only copy part that has changed like : 
-                                //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                                //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                                //OOOOOOOOOOOOOOUUU-----------------------
-                                //--------------UUU-----------------------
-                                //--------------UUUOOOOOOOOOOOOOOOOOOOOOOO
-                                //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                                //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                                //U : pixel that have changed in the image
-                                //Only byte with U and - are copied in only one pass
-                                CopyMemoryGentle(CurrentRenderInfo.Buffer, data.DataPointer, CurrentRenderInfo.DirtyRect, CurrentRenderInfo);
-                            }
-                            //else
-                            //{
-                            //    //Copy everithing. no dirty rect
-                            //    CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.NumberOfBytes);
-                            //}
-
-                            if (PopupVisibility == true && CurrentPopupRenderInfo != null)
-                            {
-                                CopyMemoryGentle(CurrentPopupRenderInfo.Buffer, data.DataPointer, CurrentPopupRenderInfo.DirtyRect, CurrentPopupRenderInfo);
-                            }
-                        }
-                    texA.UnlockRectangle(0);
-                
 
                 device9.Value.Device.UpdateTexture(texA, tex);
 
@@ -200,7 +204,7 @@ namespace CefSharp.Wpf.Rendering
                 {
                     if (!(CurrentRenderInfo.Image.Source is DXImageSource))
                     {
-                        lock (this)
+                        lock (lockObject)
                         {
                             src = new DXImageSource();
                             src.OnContextRetreived += Src_OnContextRetreived;
