@@ -66,6 +66,18 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="SharpDX">
+      <HintPath>..\packages\SharpDX.4.0.1\lib\net45\SharpDX.dll</HintPath>
+    </Reference>
+    <Reference Include="SharpDX.Direct3D9">
+      <HintPath>..\packages\SharpDX.Direct3D9.4.0.1\lib\net45\SharpDX.Direct3D9.dll</HintPath>
+    </Reference>
+    <Reference Include="SharpDX.DXGI">
+      <HintPath>..\packages\SharpDX.DXGI.4.0.1\lib\net45\SharpDX.DXGI.dll</HintPath>
+    </Reference>
+    <Reference Include="SharpDX.Mathematics">
+      <HintPath>..\packages\SharpDX.Mathematics.4.0.1\lib\net45\SharpDX.Mathematics.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Core" />
@@ -78,6 +90,12 @@
     <Reference Include="PresentationFramework" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Hack\Cameras.cs" />
+    <Compile Include="Hack\D3D.cs" />
+    <Compile Include="Hack\D3D9.cs" />
+    <Compile Include="Hack\DXImageSource.cs" />
+    <Compile Include="Hack\DXUtils.cs" />
+    <Compile Include="Hack\IDirect3D.cs" />
     <Compile Include="IWpfKeyboardHandler.cs" />
     <Compile Include="Internals\VirtualKeys.cs" />
     <Compile Include="Internals\WpfKeyboardHandler.cs" />
@@ -95,6 +113,8 @@
     <Compile Include="Rendering\Experimental\IncreaseBufferInteropRenderHandler.cs" />
     <Compile Include="Rendering\Experimental\ByteArrayWritableBitmapRenderHandler.cs" />
     <Compile Include="Rendering\InteropBitmapRenderHandler.cs" />
+    <Compile Include="Rendering\DirectXRenderHandler.cs" />
+    <Compile Include="Rendering\RenderInfo.cs" />
     <Compile Include="Rendering\WritableBitmapRenderHandler.cs" />
     <Compile Include="WM.cs" />
   </ItemGroup>

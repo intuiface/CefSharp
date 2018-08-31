@@ -761,6 +761,15 @@ namespace CefSharp
             host.SendMouseWheelEvent(new MouseEvent(x, y, modifiers), deltaX, deltaY);
         }
 
+        public static void SendTouchEvent(this IBrowser browser, int id, int x, int y, int eventType, CefEventFlags modifiers)
+        {
+            var host = browser.GetHost();
+            ThrowExceptionIfBrowserHostNull(host);
+            // TET_RELEASED = 0, TET_PRESSED, TET_MOVED, TET_CANCELLED<
+            host.SendTouchEvent(id, x, y, 0, 0, 0, eventType, modifiers);
+        }
+
+
         public static void SendMouseClickEvent(this IBrowserHost host, int x, int y, MouseButtonType mouseButtonType, bool mouseUp, int clickCount, CefEventFlags modifiers)
         {
             ThrowExceptionIfBrowserHostNull(host);

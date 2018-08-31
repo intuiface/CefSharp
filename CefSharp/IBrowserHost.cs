@@ -255,6 +255,18 @@ namespace CefSharp
         void SendMouseWheelEvent(MouseEvent mouseEvent, int deltaX, int deltaY);
 
         /// <summary>
+        /// Send a given touch event.
+        /// </summary>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        /// <param name="force"></param>
+        /// <param name="radius_x"></param>
+        /// <param name="radius_y"></param>
+        /// <param name="eventType">TET_RELEASED = 0, TET_PRESSED, TET_MOVED, TET_CANCELLED</param>
+        /// <param name="modifiers"></param>
+        void SendTouchEvent(int id, int x, int y, float force, float radius_x, float radius_y, int eventType, CefEventFlags modifiers);
+
+        /// <summary>
         /// Set accessibility state for all frames.  If accessibilityState is Default then accessibility will be disabled by default
         /// and the state may be further controlled with the "force-renderer-accessibility" and "disable-renderer-accessibility"
         /// command-line switches. If accessibilityState is STATE_ENABLED then accessibility will be enabled.

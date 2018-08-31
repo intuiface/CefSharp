@@ -36,6 +36,99 @@ namespace CefSharp.Wpf
     /// <seealso cref="CefSharp.Wpf.IWpfWebBrowser" />
     public class ChromiumWebBrowser : ContentControl, IRenderWebBrowser, IWpfWebBrowser
     {
+
+        //POPUP MOD
+        public bool PopupJustOpened { get; protected set; }
+        private Point popupPosition;
+        private Size popupSize;
+        private bool DirectXLostWarned = false;
+        private bool FirstDirectXInitialization = true;
+
+        //END OF POPUP MOD
+
+        private int _WindowLessFramerate = 60;
+        public int WindowLessFramerate
+        {
+            get
+            {
+                return _WindowLessFramerate;
+            }
+            set
+            {
+                _WindowLessFramerate = value;
+                if (browser != null)
+                {
+                    BrowserSettings.WindowlessFrameRate = value;
+                }
+            }
+        }
+
+        //DX MOD
+
+        public Action<string> DirectXLost;
+        public Action<string> DirectXNotCreated;
+
+        public bool IsDirectXRendering = true;
+
+        //END OF DX MOD
+
+        //TOUCH MOD
+
+        int oldX = 0;
+        int oldY = 0;
+
+        protected override void OnTouchDown(TouchEventArgs e)
+        {
+            Focus();
+            this.CaptureTouch(e.TouchDevice);
+            var tp = e.GetTouchPoint(this);
+            browser.SendTouchEvent(tp.TouchDevice.Id, (int)tp.Position.X, (int)tp.Position.Y, 1, CefEventFlags.None);
+            e.Handled = true;
+        }
+
+        protected override void OnTouchMove(TouchEventArgs e)
+        {
+            var tp = e.GetTouchPoint(this);
+            int tempX = (int)tp.Position.X;
+            int tempY = (int)tp.Position.Y;
+
+            if (oldX != tempX || oldY != tempY)
+            {
+                oldX = tempX; oldY = tempY;
+                browser.SendTouchEvent(tp.TouchDevice.Id, tempX, tempY, 2, CefEventFlags.None);
+                base.OnTouchMove(e);
+            }
+            e.Handled = true;
+        }
+
+        protected override void OnTouchUp(TouchEventArgs e)
+        {
+            oldX = 0;
+            oldY = 0;
+            var tp = e.GetTouchPoint(this);
+            browser.SendTouchEvent(tp.TouchDevice.Id, (int)tp.Position.X, (int)tp.Position.Y, 0, CefEventFlags.None);
+            this.ReleaseTouchCapture(e.TouchDevice);
+            base.OnTouchUp(e);
+            e.Handled = true;
+        }
+        
+        //END OF TOUCH MOD
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         /// <summary>
         /// The source
         /// </summary>
@@ -490,7 +583,7 @@ namespace CefSharp.Wpf
 
             ResourceHandlerFactory = new DefaultResourceHandlerFactory();
             BrowserSettings = new BrowserSettings();
-            RenderHandler = new InteropBitmapRenderHandler();
+            RenderHandler = new DirectXRenderHandler();
 
             WpfKeyboardHandler = new WpfKeyboardHandler(this);
             
@@ -812,6 +905,13 @@ namespace CefSharp.Wpf
         /// <param name="y">The y.</param>
         void IRenderWebBrowser.OnPopupSize(Rect rect)
         {
+            var dxRenderer = RenderHandler as DirectXRenderHandler;
+            if (dxRenderer != null)
+            {
+                dxRenderer.PopupPositionX = rect.X;
+                dxRenderer.PopupPositionY = rect.Y;
+            }
+
             UiThreadRunAsync(() => SetPopupSizeAndPositionImpl(rect));
         }
 

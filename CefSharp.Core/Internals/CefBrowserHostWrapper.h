@@ -79,6 +79,8 @@ namespace CefSharp
             virtual void SendKeyEvent(KeyEvent keyEvent);
             virtual void SendKeyEvent(int message, int wParam, int lParam);
 
+			virtual void SendTouchEvent(int id, int x, int y, float force, float radius_x, float radius_y, int eventType, CefEventFlags modifiers);
+
             virtual void SendMouseWheelEvent(MouseEvent mouseEvent, int deltaX, int deltaY);
 
             virtual void Invalidate(PaintElementType type);
