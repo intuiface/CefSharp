@@ -402,13 +402,11 @@ switch -Exact ($Target)
     "vs2015"
     {
         VSX v140
-        UpdateSymbolsWithGitLink
         Nupkg
     }
     "vs2017"
     {
         VSX v141
-        UpdateSymbolsWithGitLink
         Nupkg
     }
 }
