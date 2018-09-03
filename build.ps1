@@ -402,11 +402,9 @@ switch -Exact ($Target)
     "vs2015"
     {
         VSX v140
-        Nupkg
     }
     "vs2017"
     {
         VSX v141
-        Nupkg
     }
 }
