@@ -336,48 +336,12 @@ function UpdateSymbolsWithGitLink()
     . $gitlink $WorkingDir -f CefSharp3.sln -u https://github.com/CefSharp/CefSharp -c Release -p x86 -ignore CefSharp.Example,CefSharp.Wpf.Example
 }
 
-function WriteAssemblyVersion
-{
-
-}
-
-function WriteVersionToManifest($manifest)
-{
-    $Filename = Join-Path $WorkingDir $manifest
-    $Regex = 'assemblyIdentity version="(.*?)"';
-    
-    $ManifestData = Get-Content $Filename
-    $NewString = $ManifestData -replace $Regex, "assemblyIdentity version=""$AssemblyVersion.0"""
-    
-    $NewString | Set-Content $Filename -Encoding UTF8
-}
-
-function WriteVersionToResourceFile($resourceFile)
-{
-    $Filename = Join-Path $WorkingDir $resourceFile
-    $Regex1 = 'VERSION .*';
-    $Regex2 = 'Version", ".*?"';
-    
-    $ResourceData = Get-Content $Filename
-    $NewString = $ResourceData -replace $Regex1, "VERSION $AssemblyVersion"
-    $NewString = $NewString -replace $Regex2, "Version"", ""$AssemblyVersion"""
-    
-    $NewString | Set-Content $Filename -Encoding UTF8
-}
-
 Write-Diagnostic "CEF Redist Version = $RedistVersion"
 
 #DownloadNuget
 
 #NugetPackageRestore
 
-WriteAssemblyVersion
-
-WriteVersionToManifest "CefSharp.BrowserSubprocess\app.manifest"
-WriteVersionToManifest "CefSharp.Wpf.Example\app.manifest"
-
-WriteVersionToResourceFile "CefSharp.BrowserSubprocess.Core\Resource.rc"
-WriteVersionToResourceFile "CefSharp.Core\Resource.rc"
 
 switch -Exact ($Target)
 {
