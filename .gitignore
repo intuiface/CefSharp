@@ -46,3 +46,7 @@ CefSharp\.Wpf/bin/
 CefSharp\.WinForms/obj/
 
 *.user
+
+*.opendb
+
+CefSharp3\.VC\.db

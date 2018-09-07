@@ -74,6 +74,9 @@ namespace CefSharp.Wpf.Rendering
         public int PopupPositionX = 0;
         public int PopupPositionY = 0;
 
+        private MemoryMappedFile popupMemoryMappedFile;
+        private MemoryMappedViewAccessor popupMemoryMappedViewAccessor;
+
         void ReInitTextures()
         {
             lock (lockObject)
@@ -131,9 +134,9 @@ namespace CefSharp.Wpf.Rendering
 
 
 
-        private void DirectXRender()
+        private void DirectXRender(RenderInfo renderInfo)
         {
-            if (CurrentRenderInfo == null)
+            if (renderInfo == null)
                 return;
 
             if (!IsDirectXInitialized)
@@ -141,7 +144,7 @@ namespace CefSharp.Wpf.Rendering
                 //popup = null;
                 InitTextures();
             }
-            else if (texHeight != CurrentRenderInfo.Height || texWidth != CurrentRenderInfo.Width)
+            else if (!renderInfo.IsPopup && (texHeight != renderInfo.Height || texWidth != renderInfo.Width))
             {
                 ReInitTextures();
                 return;
@@ -161,40 +164,89 @@ namespace CefSharp.Wpf.Rendering
                 }
 
                 var data = texA.LockRectangle(0, LockFlags.None);
-                if (CurrentRenderInfo.Buffer != IntPtr.Zero)
-                    if (PopupVisibility == false && CurrentPopupRenderInfo != null)
+
+                if (renderInfo.IsPopup)
+                {
+                    ReleaseMemoryMappedView(ref popupMemoryMappedFile, ref popupMemoryMappedViewAccessor);
+
+                    popupMemoryMappedFile = MemoryMappedFile.CreateNew(null, renderInfo.NumberOfBytes, MemoryMappedFileAccess.ReadWrite);
+
+                    popupMemoryMappedViewAccessor = popupMemoryMappedFile.CreateViewAccessor();
+
+                    CopyMemory(popupMemoryMappedViewAccessor.SafeMemoryMappedViewHandle.DangerousGetHandle(), renderInfo.Buffer, (uint)renderInfo.NumberOfBytes);
+
+                    //CopyMemoryGentle(IntPtr source, IntPtr destination, RenderInfo popup, RenderInfo info);
+                    //CopyMemoryGentle(renderInfo.Buffer, data.DataPointer, renderInfo, CurrentRenderInfo);
+                }
+                else
+                {
+                    //Case of popup
+                    if (popupMemoryMappedFile != null && PopupVisibility == true)
                     {
-                        //Case of a total redraw, to be sure :)
-                        CopyMemoryGentle(CurrentRenderInfo.Buffer, data.DataPointer, CurrentRenderInfo.NumberOfBytes);
-                        CurrentPopupRenderInfo = null;
+                        if (!renderInfo.IsPopup)
+                        {
+                            CopyMemoryGentle(renderInfo.Buffer, data.DataPointer, renderInfo.NumberOfBytes);
+                            CopyMemoryGentle(popupMemoryMappedFile.SafeMemoryMappedFileHandle.DangerousGetHandle(), data.DataPointer, CurrentPopupRenderInfo, renderInfo);
+                        }
+                    }
+                    ///After closing popup
+                    else if (popupMemoryMappedFile != null && PopupVisibility == false)
+                    {
+                        if (!renderInfo.IsPopup)
+                        {
+                            CopyMemoryGentle(renderInfo.Buffer, data.DataPointer, renderInfo.NumberOfBytes);
+                            ReleaseMemoryMappedView(ref popupMemoryMappedFile, ref popupMemoryMappedViewAccessor);
+                        }
                     }
                     else
                     {
-                        //if (CurrentRenderInfo.DirtyRect)
-                        {
-                            //Only copy part that has changed like : 
-                            //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                            //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                            //OOOOOOOOOOOOOOUUU-----------------------
-                            //--------------UUU-----------------------
-                            //--------------UUUOOOOOOOOOOOOOOOOOOOOOOO
-                            //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                            //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                            //U : pixel that have changed in the image
-                            //Only byte with U and - are copied in only one pass
-                            CopyMemoryGentle(CurrentRenderInfo.Buffer, data.DataPointer, CurrentRenderInfo.DirtyRect, CurrentRenderInfo);
-                        }
-                        //else
-                        //{
-                        //    //Copy everithing. no dirty rect
-                        //    CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.NumberOfBytes);
-                        //}
-
-                        if (PopupVisibility == true && CurrentPopupRenderInfo != null)
-                        {
-                            CopyMemoryGentle(CurrentPopupRenderInfo.Buffer, data.DataPointer, CurrentPopupRenderInfo.DirtyRect, CurrentPopupRenderInfo);
-                        }
+                        CopyMemoryGentle(renderInfo.Buffer, data.DataPointer, renderInfo.DirtyRect, CurrentRenderInfo);
                     }
+                }
+
+
+
+
+
+
+
+
+
+
+                //if (renderInfo.Buffer != IntPtr.Zero)
+                //    if (PopupVisibility == false && renderInfo != null)
+                //    {
+                //        //Case of a total redraw, to be sure :)
+                //        CopyMemoryGentle(CurrentRenderInfo.Buffer, data.DataPointer, CurrentRenderInfo.NumberOfBytes);
+                //        CurrentPopupRenderInfo = null;
+                //    }
+                //    else
+                //    {
+                //        if (PopupVisibility == true && CurrentPopupRenderInfo != null)
+                //        {
+                //            //Only copy part that has changed like : 
+                //            //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                //            //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                //            //OOOOOOOOOOOOOOUUU-----------------------
+                //            //--------------UUU-----------------------
+                //            //--------------UUUOOOOOOOOOOOOOOOOOOOOOOO
+                //            //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                //            //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                //            //U : pixel that have changed in the image
+                //            //Only byte with U and - are copied in only one pass
+                //            CopyMemoryGentle(CurrentRenderInfo.Buffer, data.DataPointer, CurrentRenderInfo.DirtyRect, CurrentRenderInfo);
+                //        }
+                //        //else
+                //        {
+                //            //Copy everithing. no dirty rect
+                //            //CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.NumberOfBytes);
+                //        }
+
+                //        if (PopupVisibility == true && CurrentPopupRenderInfo != null)
+                //        {
+                //            CopyMemoryGentle(CurrentPopupRenderInfo.Buffer, data.DataPointer, CurrentPopupRenderInfo.DirtyRect, CurrentPopupRenderInfo);
+                //        }
+                //    }
                 texA.UnlockRectangle(0);
 
 
@@ -218,6 +270,21 @@ namespace CefSharp.Wpf.Rendering
                     }
                 }),
             DispatcherPriority.Render);
+            }
+        }
+
+        private void ReleaseMemoryMappedView(ref MemoryMappedFile mappedFile, ref MemoryMappedViewAccessor stream)
+        {
+            if (stream != null)
+            {
+                stream.Dispose();
+                stream = null;
+            }
+
+            if (mappedFile != null)
+            {
+                mappedFile.Dispose();
+                mappedFile = null;
             }
         }
 
@@ -246,6 +313,7 @@ namespace CefSharp.Wpf.Rendering
             IntPtr newDestination = new IntPtr(destination.ToInt64() + dirtyRect.Y * info.Width * info.BytesPerPixel + dirtyRect.X * info.BytesPerPixel);
             IntPtr newSource = new IntPtr(source.ToInt64() + dirtyRect.Y * info.Width * info.BytesPerPixel + dirtyRect.X * info.BytesPerPixel);
             int length = (dirtyRect.Height - 1) * info.Width * info.BytesPerPixel + dirtyRect.Width * info.BytesPerPixel;
+
             CopyMemory(newDestination, newSource, (uint)length);
         }
 
@@ -298,6 +366,7 @@ namespace CefSharp.Wpf.Rendering
             if (isPopup)
             {
                 CurrentPopupRenderInfo = new RenderInfo(isPopup, dirtyRect, buffer, width, height, image);
+                DirectXRender(CurrentPopupRenderInfo);
             }
             else
             {
@@ -307,9 +376,10 @@ namespace CefSharp.Wpf.Rendering
                 CurrentRenderInfo.Width = width;
                 CurrentRenderInfo.Height = height;
                 CurrentRenderInfo.Image = image;
+                DirectXRender(CurrentRenderInfo);
             }
 
-            DirectXRender();
+
         }
 
         //private void CreateOrUpdateBitmap(bool isPopup, Rect dirtyRect, IntPtr buffer, int width, int height, Image image, ref Size currentSize, ref MemoryMappedFile mappedFile, ref MemoryMappedViewAccessor viewAccessor)
