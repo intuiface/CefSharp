@@ -338,17 +338,7 @@ function UpdateSymbolsWithGitLink()
 
 function WriteAssemblyVersion
 {
-    param()
 
-    $Filename = Join-Path $WorkingDir CefSharp\Properties\AssemblyInfo.cs
-    $Regex = 'public const string AssemblyVersion = "(.*)"';
-    $Regex2 = 'public const string AssemblyFileVersion = "(.*)"'
-    
-    $AssemblyInfo = Get-Content $Filename
-    $NewString = $AssemblyInfo -replace $Regex, "public const string AssemblyVersion = ""$AssemblyVersion"""
-    $NewString = $NewString -replace $Regex2, "public const string AssemblyFileVersion = ""$AssemblyVersion"""
-    
-    $NewString | Set-Content $Filename -Encoding UTF8
 }
 
 function WriteVersionToManifest($manifest)
