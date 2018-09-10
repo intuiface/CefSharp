@@ -5,6 +5,7 @@
 using SharpDX.Direct3D9;
 using SharpDX.WPF;
 using System;
+using System.Diagnostics;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -73,6 +74,9 @@ namespace CefSharp.Wpf.Rendering
         public bool PopupVisibility = false;
         public int PopupPositionX = 0;
         public int PopupPositionY = 0;
+
+        private MemoryMappedFile memoryMappedFile;
+        private MemoryMappedViewAccessor memoryMappedViewAccessor;
 
         private MemoryMappedFile popupMemoryMappedFile;
         private MemoryMappedViewAccessor popupMemoryMappedViewAccessor;
@@ -165,43 +169,33 @@ namespace CefSharp.Wpf.Rendering
 
                 var data = texA.LockRectangle(0, LockFlags.None);
 
-                if (renderInfo.IsPopup)
-                {
-                    ReleaseMemoryMappedView(ref popupMemoryMappedFile, ref popupMemoryMappedViewAccessor);
-
-                    popupMemoryMappedFile = MemoryMappedFile.CreateNew(null, renderInfo.NumberOfBytes, MemoryMappedFileAccess.ReadWrite);
-
-                    popupMemoryMappedViewAccessor = popupMemoryMappedFile.CreateViewAccessor();
-
-                    CopyMemory(popupMemoryMappedViewAccessor.SafeMemoryMappedViewHandle.DangerousGetHandle(), renderInfo.Buffer, (uint)renderInfo.NumberOfBytes);
-
-                    //CopyMemoryGentle(IntPtr source, IntPtr destination, RenderInfo popup, RenderInfo info);
-                    //CopyMemoryGentle(renderInfo.Buffer, data.DataPointer, renderInfo, CurrentRenderInfo);
-                }
-                else
+                if (!renderInfo.IsPopup)
                 {
                     //Case of popup
                     if (popupMemoryMappedFile != null && PopupVisibility == true)
                     {
-                        if (!renderInfo.IsPopup)
-                        {
-                            CopyMemoryGentle(renderInfo.Buffer, data.DataPointer, renderInfo.NumberOfBytes);
-                            CopyMemoryGentle(popupMemoryMappedFile.SafeMemoryMappedFileHandle.DangerousGetHandle(), data.DataPointer, CurrentPopupRenderInfo, renderInfo);
-                        }
+                        CopyMemoryGentle(memoryMappedViewAccessor.SafeMemoryMappedViewHandle.DangerousGetHandle(), data.DataPointer, CurrentRenderInfo.NumberOfBytes);
+                        CopyMemoryGentle(popupMemoryMappedViewAccessor.SafeMemoryMappedViewHandle.DangerousGetHandle(), data.DataPointer, CurrentPopupRenderInfo, renderInfo);
+                        Debug.WriteLine("Popup case over redeaw");
                     }
                     ///After closing popup
                     else if (popupMemoryMappedFile != null && PopupVisibility == false)
                     {
-                        if (!renderInfo.IsPopup)
-                        {
-                            CopyMemoryGentle(renderInfo.Buffer, data.DataPointer, renderInfo.NumberOfBytes);
-                            ReleaseMemoryMappedView(ref popupMemoryMappedFile, ref popupMemoryMappedViewAccessor);
-                        }
+                        CopyMemoryGentle(renderInfo.Buffer, data.DataPointer, renderInfo.NumberOfBytes);
+                        ReleaseMemoryMappedView(ref popupMemoryMappedFile, ref popupMemoryMappedViewAccessor);
+                        Debug.WriteLine("After closing popup " + renderInfo.NumberOfBytes);
                     }
                     else
                     {
-                        CopyMemoryGentle(renderInfo.Buffer, data.DataPointer, renderInfo.DirtyRect, CurrentRenderInfo);
+                        CopyMemoryGentle(renderInfo.Buffer, data.DataPointer, renderInfo.DirtyRect, renderInfo);
+                        Debug.WriteLine("Global case posX:" + renderInfo.DirtyRect.X + " posY:" + renderInfo.DirtyRect.Y + " w:" + renderInfo.DirtyRect.Width + " h:" + renderInfo.DirtyRect.Height);
                     }
+                }
+                else
+                {
+                    //CopyMemoryGentle(memoryMappedViewAccessor.SafeMemoryMappedViewHandle.DangerousGetHandle(), data.DataPointer, CurrentRenderInfo.NumberOfBytes);
+                    CopyMemoryGentle(popupMemoryMappedViewAccessor.SafeMemoryMappedViewHandle.DangerousGetHandle(), data.DataPointer, CurrentPopupRenderInfo, CurrentRenderInfo);
+                    Debug.WriteLine("Popup case");
                 }
 
 
@@ -365,7 +359,22 @@ namespace CefSharp.Wpf.Rendering
         {
             if (isPopup)
             {
+
                 CurrentPopupRenderInfo = new RenderInfo(isPopup, dirtyRect, buffer, width, height, image);
+
+                ReleaseMemoryMappedView(ref memoryMappedFile, ref memoryMappedViewAccessor);
+                memoryMappedFile = MemoryMappedFile.CreateNew(null, CurrentRenderInfo.NumberOfBytes, MemoryMappedFileAccess.ReadWrite);
+                memoryMappedViewAccessor = memoryMappedFile.CreateViewAccessor();
+
+                var data = texA.LockRectangle(0, LockFlags.ReadOnly);
+                CopyMemoryGentle(data.DataPointer, memoryMappedViewAccessor.SafeMemoryMappedViewHandle.DangerousGetHandle(), CurrentRenderInfo.NumberOfBytes);
+                texA.UnlockRectangle(0);
+
+                ReleaseMemoryMappedView(ref popupMemoryMappedFile, ref popupMemoryMappedViewAccessor);
+                popupMemoryMappedFile = MemoryMappedFile.CreateNew(null, CurrentPopupRenderInfo.NumberOfBytes, MemoryMappedFileAccess.ReadWrite);
+                popupMemoryMappedViewAccessor = popupMemoryMappedFile.CreateViewAccessor();
+                CopyMemoryGentle(CurrentPopupRenderInfo.Buffer, popupMemoryMappedViewAccessor.SafeMemoryMappedViewHandle.DangerousGetHandle(), CurrentPopupRenderInfo.NumberOfBytes);
+
                 DirectXRender(CurrentPopupRenderInfo);
             }
             else

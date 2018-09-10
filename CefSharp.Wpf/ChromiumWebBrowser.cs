@@ -169,15 +169,6 @@ namespace CefSharp.Wpf
         /// The image that represents this browser instances
         /// </summary>
         private Image image;
-        /// <summary>
-        /// The popup image
-        /// </summary>
-        private Image popupImage;
-        /// <summary>
-        /// The popup
-        /// </summary>
-        private Popup popup;
-        /// <summary>
         /// The browser
         /// </summary>
         private IBrowser browser;
@@ -585,8 +576,11 @@ namespace CefSharp.Wpf
 
             ResourceHandlerFactory = new DefaultResourceHandlerFactory();
             BrowserSettings = new BrowserSettings();
-            RenderHandler = new DirectXRenderHandler();
 
+            RenderHandler = new DirectXRenderHandler();
+            //RenderHandler = new WritableBitmapRenderHandler(300,300);
+
+            
             WpfKeyboardHandler = new WpfKeyboardHandler(this);
 
             PresentationSource.AddSourceChangedHandler(this, PresentationSourceChangedHandler);
@@ -680,13 +674,6 @@ namespace CefSharp.Wpf
                     Drop -= OnDrop;
 
                     IsVisibleChanged -= OnIsVisibleChanged;
-
-                    if (popup != null)
-                    {
-                        popup.Opened -= PopupOpened;
-                        popup.Closed -= PopupClosed;
-                        popup = null;
-                    }
 
                     if (tooltipTimer != null)
                     {
@@ -893,7 +880,7 @@ namespace CefSharp.Wpf
                 }
             }
 
-            var img = isPopup ? popupImage : image;
+            var img = image;
 
             RenderHandler?.OnPaint(isPopup, dirtyRect, buffer, width, height, img);
         }
@@ -934,7 +921,7 @@ namespace CefSharp.Wpf
                 dxRenderer.PopupVisibility = isOpen;
             }
 
-            UiThreadRunAsync(() => { popup.IsOpen = isOpen; });
+            //UiThreadRunAsync(() => { popup.IsOpen = isOpen; });
         }
 
         /// <summary>
@@ -1955,10 +1942,10 @@ namespace CefSharp.Wpf
                 Content = image = CreateImage();
             }
 
-            if (popup == null)
-            {
-                popup = CreatePopup();
-            }
+            //if (popup == null)
+            //{
+            //    popup = CreatePopup();
+            //}
         }
 
         /// <summary>
@@ -1990,7 +1977,7 @@ namespace CefSharp.Wpf
         {
             var newPopup = new Popup
             {
-                Child = popupImage = CreateImage(),
+                //Child = popupImage = CreateImage(),
                 PlacementTarget = this,
                 Placement = PlacementMode.Absolute,
                 //Needs to allow transparency or only ScaleTransforms are allowed
@@ -2030,13 +2017,13 @@ namespace CefSharp.Wpf
         /// <param name="y">The y.</param>
         private void SetPopupSizeAndPositionImpl(Rect rect)
         {
-            popup.Width = rect.Width;
-            popup.Height = rect.Height;
+            //popup.Width = rect.Width;
+            //popup.Height = rect.Height;
 
             var popupOffset = new Point(rect.X, rect.Y);
             var locationFromScreen = PointToScreen(popupOffset);
-            popup.HorizontalOffset = locationFromScreen.X / DpiScaleFactor;
-            popup.VerticalOffset = locationFromScreen.Y / DpiScaleFactor;
+            //popup.HorizontalOffset = locationFromScreen.X / DpiScaleFactor;
+            //popup.VerticalOffset = locationFromScreen.Y / DpiScaleFactor;
 
             CurrentPopupPosition = new Rect(rect.X, rect.Y, rect.Width, rect.Height);
         }

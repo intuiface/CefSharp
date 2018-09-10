@@ -46,7 +46,7 @@ namespace CefSharp.Wpf.Rendering
         {
             get
             {
-                int pixels = DirtyRect.Width * DirtyRect.Height;
+                int pixels = Width* Height;
                 return pixels * BytesPerPixel;
             }
         }
