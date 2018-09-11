@@ -81,13 +81,13 @@ namespace CefSharp.Wpf.Rendering
         private MemoryMappedFile popupMemoryMappedFile;
         private MemoryMappedViewAccessor popupMemoryMappedViewAccessor;
 
-        void ReInitTextures()
+        void ReInitTextures(bool redraw = true)
         {
             lock (lockObject)
             {
                 var oldTex = tex;
                 var oldTexA = texA;
-                InitTextures();
+                InitTextures(redraw);
                 if (src != null)
                 {
                     CurrentRenderInfo.Image.Dispatcher.BeginInvoke((Action)(() =>
@@ -104,7 +104,7 @@ namespace CefSharp.Wpf.Rendering
             }
         }
 
-        void InitTextures()
+        void InitTextures(bool redraw = true)
         {
             if (CurrentRenderInfo == null)
                 return;
@@ -119,8 +119,10 @@ namespace CefSharp.Wpf.Rendering
                               SharpDX.Direct3D9.Format.A8R8G8B8,
                               Pool.SystemMemory);
             var data = texA.LockRectangle(0, LockFlags.None);
-            if (CurrentRenderInfo.Buffer != IntPtr.Zero)
+
+            if (CurrentRenderInfo.Buffer != IntPtr.Zero && redraw)
                 CopyMemory(data.DataPointer, CurrentRenderInfo.Buffer, (uint)CurrentRenderInfo.NumberOfBytes);
+
             texA.UnlockRectangle(0);
 
             tex = new SharpDX.Direct3D9.Texture(
@@ -193,54 +195,10 @@ namespace CefSharp.Wpf.Rendering
                 }
                 else
                 {
-                    //CopyMemoryGentle(memoryMappedViewAccessor.SafeMemoryMappedViewHandle.DangerousGetHandle(), data.DataPointer, CurrentRenderInfo.NumberOfBytes);
                     CopyMemoryGentle(popupMemoryMappedViewAccessor.SafeMemoryMappedViewHandle.DangerousGetHandle(), data.DataPointer, CurrentPopupRenderInfo, CurrentRenderInfo);
                     Debug.WriteLine("Popup case");
                 }
 
-
-
-
-
-
-
-
-
-
-                //if (renderInfo.Buffer != IntPtr.Zero)
-                //    if (PopupVisibility == false && renderInfo != null)
-                //    {
-                //        //Case of a total redraw, to be sure :)
-                //        CopyMemoryGentle(CurrentRenderInfo.Buffer, data.DataPointer, CurrentRenderInfo.NumberOfBytes);
-                //        CurrentPopupRenderInfo = null;
-                //    }
-                //    else
-                //    {
-                //        if (PopupVisibility == true && CurrentPopupRenderInfo != null)
-                //        {
-                //            //Only copy part that has changed like : 
-                //            //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                //            //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                //            //OOOOOOOOOOOOOOUUU-----------------------
-                //            //--------------UUU-----------------------
-                //            //--------------UUUOOOOOOOOOOOOOOOOOOOOOOO
-                //            //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                //            //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-                //            //U : pixel that have changed in the image
-                //            //Only byte with U and - are copied in only one pass
-                //            CopyMemoryGentle(CurrentRenderInfo.Buffer, data.DataPointer, CurrentRenderInfo.DirtyRect, CurrentRenderInfo);
-                //        }
-                //        //else
-                //        {
-                //            //Copy everithing. no dirty rect
-                //            //CopyMemoryGentle(info.BackBufferHandle, data.DataPointer, info.NumberOfBytes);
-                //        }
-
-                //        if (PopupVisibility == true && CurrentPopupRenderInfo != null)
-                //        {
-                //            CopyMemoryGentle(CurrentPopupRenderInfo.Buffer, data.DataPointer, CurrentPopupRenderInfo.DirtyRect, CurrentPopupRenderInfo);
-                //        }
-                //    }
                 texA.UnlockRectangle(0);
 
 
@@ -284,7 +242,8 @@ namespace CefSharp.Wpf.Rendering
 
         private void Src_OnContextRetreived(object sender, EventArgs e)
         {
-            ReInitTextures();
+
+            ReInitTextures(false);
         }
 
         private void CopyMemoryGentle(IntPtr source, IntPtr destination, long startIndexSource, long startIndexDestination, int length)
