@@ -135,6 +135,12 @@ namespace CefSharp.Wpf.Rendering
                        Pool.Default);
             texHeight = CurrentRenderInfo.Height;
             texWidth = CurrentRenderInfo.Width;
+
+            CurrentRenderInfo.Image.Dispatcher.BeginInvoke((Action)(() =>
+            {
+                InvalidateImageSource();
+            }));
+
             IsDirectXInitialized = true;
         }
 
@@ -206,22 +212,27 @@ namespace CefSharp.Wpf.Rendering
 
                 CurrentRenderInfo.Image.Dispatcher.BeginInvoke((Action)(() =>
                 {
-                    if (!(CurrentRenderInfo.Image.Source is DXImageSource))
-                    {
-                        lock (lockObject)
-                        {
-                            src = new DXImageSource();
-                            src.OnContextRetreived += Src_OnContextRetreived;
-                            src.SetBackBuffer(tex);
-                            CurrentRenderInfo.Image.Source = src;
-                        }
-                    }
-                    else
-                    {
-                        src.Invalidate();
-                    }
+                    InvalidateImageSource();
                 }),
             DispatcherPriority.Render);
+            }
+        }
+
+        private void InvalidateImageSource()
+        {
+            if (!(CurrentRenderInfo.Image.Source is DXImageSource))
+            {
+                lock (lockObject)
+                {
+                    src = new DXImageSource();
+                    src.OnContextRetreived += Src_OnContextRetreived;
+                    src.SetBackBuffer(tex);
+                    CurrentRenderInfo.Image.Source = src;
+                }
+            }
+            else
+            {
+                src.Invalidate();
             }
         }
 
