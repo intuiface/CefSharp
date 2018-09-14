@@ -1,17 +1,20 @@
 ﻿using System;
+using System.Linq;
 using System.Windows;
 using System.Windows.Interop;
 using SharpDX.Direct3D9;
+using System.Diagnostics;
 
 namespace SharpDX.WPF
 {
-	public class DXImageSource : D3DImage, IDisposable
-	{
+    public class DXImageSource : D3DImage, IDisposable
+    {
         private bool UpState = true;
-        
-		public DXImageSource()
-		{
-			StartD3D9();
+
+        public DXImageSource()
+        {
+            Debug.WriteLine("DXImageSource " + this.GetHashCode());
+            StartD3D9();
             this.IsFrontBufferAvailableChanged += DXImageSource_IsFrontBufferAvailableChanged;
         }
 
@@ -45,41 +48,41 @@ namespace SharpDX.WPF
         /// </summary>
         /// <param name="disposing"></param>
 		protected void Dispose(bool disposing)
-		{
+        {
             //this.IsFrontBufferAvailableChanged -= DXImageSource_IsFrontBufferAvailableChanged;
             //this.OnContextRetreived = null;
             if (IsDisposed)
-				return;
+                return;
 
-			if (disposing)
-			{
-				SetBackBuffer((Texture)null);
-				GC.SuppressFinalize(this);
-			}
-			EndD3D9();
-			m_isDisposed = true;
-		}
+            if (disposing)
+            {
+                SetBackBuffer((Texture)null);
+                GC.SuppressFinalize(this);
+            }
+            EndD3D9();
+            m_isDisposed = true;
+        }
 
         /// <summary>
         /// 
         /// </summary>
 		public bool IsDisposed { get { return m_isDisposed; } }
-	
+
         /// <summary>
         /// 
         /// </summary>
-		public void Invalidate()
-		{
-			if (IsDisposed)
-				throw new ObjectDisposedException(GetType().Name);
+        public void Invalidate()
+        {
+            if (IsDisposed)
+                throw new ObjectDisposedException(GetType().Name);
 
-			if (m_backBuffer != null)
-			{
-				Lock();
-				AddDirtyRect(new Int32Rect(0, 0, base.PixelWidth, base.PixelHeight));
-				Unlock();
-			}
-		}
+            if (m_backBuffer != null)
+            {
+                Lock();
+                AddDirtyRect(new Int32Rect(0, 0, base.PixelWidth, base.PixelHeight));
+                Unlock();
+            }
+        }
 
         ///// <summary>
         ///// 
@@ -98,75 +101,79 @@ namespace SharpDX.WPF
         /// </summary>
         /// <param name="texture"></param>
 		public void SetBackBuffer(Texture texture)
-		{
-			if (IsDisposed)
-				throw new ObjectDisposedException(GetType().Name);
+        {
+            if (IsDisposed)
+                throw new ObjectDisposedException(GetType().Name);
 
-			Texture toDelete = null;
-			try
-			{
-				if (texture != m_backBuffer)
-				{
-					// if it's from the private (SDX9ImageSource) D3D9 device, dispose of it
-					if (m_backBuffer != null && m_backBuffer.Device.NativePointer == s_d3d9.Device.NativePointer)
-						toDelete = m_backBuffer;
-					m_backBuffer = texture;
-				}
+            Texture toDelete = null;
+            try
+            {
+                Debug.WriteLine("DXImageSource SetBackBuffer before " + this.GetHashCode());
+                if (texture != m_backBuffer)
+                {
+                    // if it's from the private (SDX9ImageSource) D3D9 device, dispose of it
+                    if (m_backBuffer != null && m_backBuffer.Device.NativePointer == s_d3d9.Device.NativePointer)
+                        toDelete = m_backBuffer;
+                    m_backBuffer = texture;
+                }
 
-				if (texture != null)
-				{
-					using (Surface surface = texture.GetSurfaceLevel(0))
-					{
-						Lock();
-						SetBackBuffer(D3DResourceType.IDirect3DSurface9, surface.NativePointer);
-						AddDirtyRect(new Int32Rect(0, 0, base.PixelWidth, base.PixelHeight));
-						Unlock();
-					}
-				}
-				else
-				{
-					Lock();
-					SetBackBuffer(D3DResourceType.IDirect3DSurface9, IntPtr.Zero);
-					AddDirtyRect(new Int32Rect(0, 0, base.PixelWidth, base.PixelHeight));
-					Unlock();
-				}
-			}
-			finally 
-			{
-				if (toDelete != null)
-				{
-					toDelete.Dispose();
-				}
-			}
-		}
-    
+                if (texture != null)
+                {
+                    using (Surface surface = texture.GetSurfaceLevel(0))
+                    {
+                        Lock();
+                        SetBackBuffer(D3DResourceType.IDirect3DSurface9, surface.NativePointer);
+                        AddDirtyRect(new Int32Rect(0, 0, base.PixelWidth, base.PixelHeight));
+                        Unlock();
+                    }
+                }
+                else
+                {
+                    Lock();
+                    SetBackBuffer(D3DResourceType.IDirect3DSurface9, IntPtr.Zero);
+                    AddDirtyRect(new Int32Rect(0, 0, base.PixelWidth, base.PixelHeight));
+                    Unlock();
+                }
+                Debug.WriteLine("DXImageSource  SetBackBuffer after " + this.GetHashCode());
+            }
+            finally
+            {
+                if (toDelete != null)
+                {
+                    toDelete.Dispose();
+                }
+
+
+            }
+        }
+
         /// <summary>
         /// 
         /// </summary>
-		private static void StartD3D9()
-		{
-			if (s_activeClients == 0)
-				s_d3d9 = new D3D9();
-			s_activeClients++;
-		}
+        private static void StartD3D9()
+        {
+            if (s_activeClients == 0)
+                s_d3d9 = new D3D9();
+            s_activeClients++;
+        }
 
         /// <summary>
         /// 
         /// </summary>
 		private static void EndD3D9()
-		{
-			s_activeClients--;
-			if (s_activeClients == 0)
-				s_d3d9.Dispose();
-		}
+        {
+            s_activeClients--;
+            if (s_activeClients == 0)
+                s_d3d9.Dispose();
+        }
 
 
-		private static int s_activeClients;
-		private static D3D9 s_d3d9;
+        private static int s_activeClients;
+        private static D3D9 s_d3d9;
 
 
         private bool m_isDisposed;
         private Texture m_backBuffer;
-		
-	}
+
+    }
 }

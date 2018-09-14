@@ -5,6 +5,7 @@
 using SharpDX.Direct3D9;
 using SharpDX.WPF;
 using System;
+using System.Linq;
 using System.Diagnostics;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
@@ -15,6 +16,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 using Rect = CefSharp.Structs.Rect;
+using System.Windows.Interop;
 
 namespace CefSharp.Wpf.Rendering
 {
@@ -120,10 +122,14 @@ namespace CefSharp.Wpf.Rendering
                               Pool.SystemMemory);
             var data = texA.LockRectangle(0, LockFlags.None);
 
+            InteropBitmap source = null;
             if (CurrentRenderInfo.Buffer != IntPtr.Zero && redraw)
                 CopyMemory(data.DataPointer, CurrentRenderInfo.Buffer, (uint)CurrentRenderInfo.NumberOfBytes);
 
             texA.UnlockRectangle(0);
+
+
+
 
             tex = new SharpDX.Direct3D9.Texture(
                device9.Value.Device,
@@ -136,11 +142,7 @@ namespace CefSharp.Wpf.Rendering
             texHeight = CurrentRenderInfo.Height;
             texWidth = CurrentRenderInfo.Width;
 
-            CurrentRenderInfo.Image.Dispatcher.BeginInvoke((Action)(() =>
-            {
-                InvalidateImageSource();
-            }));
-
+            Debug.WriteLine("InitTextures end called");
             IsDirectXInitialized = true;
         }
 
@@ -148,11 +150,13 @@ namespace CefSharp.Wpf.Rendering
 
         private void DirectXRender(RenderInfo renderInfo)
         {
+            Debug.WriteLine("Render called");
             if (renderInfo == null)
                 return;
 
             if (!IsDirectXInitialized)
             {
+                Debug.WriteLine("InitTextures called");
                 //popup = null;
                 InitTextures();
             }
@@ -220,6 +224,7 @@ namespace CefSharp.Wpf.Rendering
 
         private void InvalidateImageSource()
         {
+            Debug.WriteLine("InvalidateImageSource calling ...");
             if (!(CurrentRenderInfo.Image.Source is DXImageSource))
             {
                 lock (lockObject)
@@ -228,6 +233,8 @@ namespace CefSharp.Wpf.Rendering
                     src.OnContextRetreived += Src_OnContextRetreived;
                     src.SetBackBuffer(tex);
                     CurrentRenderInfo.Image.Source = src;
+
+                    Debug.WriteLine("InvalidateImageSource called ...");
                 }
             }
             else
@@ -327,6 +334,11 @@ namespace CefSharp.Wpf.Rendering
 
         void IRenderHandler.OnPaint(bool isPopup, Rect dirtyRect, IntPtr buffer, int width, int height, Image image)
         {
+            if (image.Dispatcher.HasShutdownStarted)
+            {
+                return;
+            }
+
             if (isPopup)
             {
 

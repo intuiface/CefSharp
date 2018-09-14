@@ -45,6 +45,7 @@ namespace CefSharp.Wpf
         private bool FirstDirectXInitialization = true;
         public Rect CurrentPopupPosition;
         public bool PopupVisibility = false;
+        public int Framerate_FramerateValue = 0;
 
         //END OF POPUP MOD
 
@@ -580,7 +581,7 @@ namespace CefSharp.Wpf
             RenderHandler = new DirectXRenderHandler();
             //RenderHandler = new WritableBitmapRenderHandler(300,300);
 
-            
+
             WpfKeyboardHandler = new WpfKeyboardHandler(this);
 
             PresentationSource.AddSourceChangedHandler(this, PresentationSourceChangedHandler);
@@ -883,6 +884,13 @@ namespace CefSharp.Wpf
             var img = image;
 
             RenderHandler?.OnPaint(isPopup, dirtyRect, buffer, width, height, img);
+
+            var dxRenderer = RenderHandler as DirectXRenderHandler;
+            if (dxRenderer != null)
+            {
+                Framerate_FramerateValue = dxRenderer.Framerate_FramerateValue;
+            }
+
         }
 
         /// <summary>
@@ -1101,7 +1109,7 @@ namespace CefSharp.Wpf
                     // If Address was previously set, only now can we actually do the load
                     if (!string.IsNullOrEmpty(Address))
                     {
-                        Load(Address);
+                        Load("http://internal-www.intuilab.com/TestAuto/mockupWebsite/index.html");
                     }
                 }
             });
@@ -1965,6 +1973,7 @@ namespace CefSharp.Wpf
             img.Stretch = Stretch.None;
             img.HorizontalAlignment = HorizontalAlignment.Left;
             img.VerticalAlignment = VerticalAlignment.Top;
+
 
             return img;
         }
