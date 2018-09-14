@@ -90,19 +90,6 @@ namespace CefSharp.Wpf.Rendering
                 var oldTex = tex;
                 var oldTexA = texA;
                 InitTextures(redraw);
-                if (src != null)
-                {
-                    CurrentRenderInfo.Image.Dispatcher.BeginInvoke((Action)(() =>
-                    {
-                        lock (lockObject)
-                        {
-                            src.SetBackBuffer(tex);
-                            oldTex.Dispose();
-                            oldTexA.Dispose();
-                        }
-                    }));
-                }
-                // DirectXRender();
             }
         }
 
@@ -157,75 +144,80 @@ namespace CefSharp.Wpf.Rendering
             if (!IsDirectXInitialized)
             {
                 Debug.WriteLine("InitTextures called");
-                //popup = null;
                 InitTextures();
+                RenderData(renderInfo, true);
             }
             else if (!renderInfo.IsPopup && (texHeight != renderInfo.Height || texWidth != renderInfo.Width))
             {
-                ReInitTextures();
-                return;
+                InitTextures();
+                RenderData(renderInfo, true);
             }
             else
             {
-                var sec = DateTime.Now.Second;
-                if (Framerate_LastSecond != sec)
-                {
-                    Framerate_FramerateValue = Framerate_FrameCountByDelta;
-                    Framerate_LastSecond = sec;
-                    Framerate_FrameCountByDelta = 1;
-                }
-                else
-                {
-                    Framerate_FrameCountByDelta++;
-                }
-
-                var data = texA.LockRectangle(0, LockFlags.None);
-
-                if (!renderInfo.IsPopup)
-                {
-                    //Case of popup
-                    if (popupMemoryMappedFile != null && PopupVisibility == true)
-                    {
-                        CopyMemoryGentle(memoryMappedViewAccessor.SafeMemoryMappedViewHandle.DangerousGetHandle(), data.DataPointer, CurrentRenderInfo.NumberOfBytes);
-                        CopyMemoryGentle(popupMemoryMappedViewAccessor.SafeMemoryMappedViewHandle.DangerousGetHandle(), data.DataPointer, CurrentPopupRenderInfo, renderInfo);
-                        Debug.WriteLine("Popup case over redeaw");
-                    }
-                    ///After closing popup
-                    else if (popupMemoryMappedFile != null && PopupVisibility == false)
-                    {
-                        CopyMemoryGentle(renderInfo.Buffer, data.DataPointer, renderInfo.NumberOfBytes);
-                        ReleaseMemoryMappedView(ref popupMemoryMappedFile, ref popupMemoryMappedViewAccessor);
-                        Debug.WriteLine("After closing popup " + renderInfo.NumberOfBytes);
-                    }
-                    else
-                    {
-                        CopyMemoryGentle(renderInfo.Buffer, data.DataPointer, renderInfo.DirtyRect, renderInfo);
-                        Debug.WriteLine("Global case posX:" + renderInfo.DirtyRect.X + " posY:" + renderInfo.DirtyRect.Y + " w:" + renderInfo.DirtyRect.Width + " h:" + renderInfo.DirtyRect.Height);
-                    }
-                }
-                else
-                {
-                    CopyMemoryGentle(popupMemoryMappedViewAccessor.SafeMemoryMappedViewHandle.DangerousGetHandle(), data.DataPointer, CurrentPopupRenderInfo, CurrentRenderInfo);
-                    Debug.WriteLine("Popup case");
-                }
-
-                texA.UnlockRectangle(0);
-
-
-                device9.Value.Device.UpdateTexture(texA, tex);
-
-                CurrentRenderInfo.Image.Dispatcher.BeginInvoke((Action)(() =>
-                {
-                    InvalidateImageSource();
-                }),
-            DispatcherPriority.Render);
+                RenderData(renderInfo, false);
             }
         }
 
-        private void InvalidateImageSource()
+        private void RenderData(RenderInfo renderInfo, bool forceChangeSource)
+        {
+            var sec = DateTime.Now.Second;
+            if (Framerate_LastSecond != sec)
+            {
+                Framerate_FramerateValue = Framerate_FrameCountByDelta;
+                Framerate_LastSecond = sec;
+                Framerate_FrameCountByDelta = 1;
+            }
+            else
+            {
+                Framerate_FrameCountByDelta++;
+            }
+
+            var data = texA.LockRectangle(0, LockFlags.None);
+
+            if (!renderInfo.IsPopup)
+            {
+                //Case of popup
+                if (popupMemoryMappedFile != null && PopupVisibility == true)
+                {
+                    CopyMemoryGentle(memoryMappedViewAccessor.SafeMemoryMappedViewHandle.DangerousGetHandle(), data.DataPointer, CurrentRenderInfo.NumberOfBytes);
+                    CopyMemoryGentle(popupMemoryMappedViewAccessor.SafeMemoryMappedViewHandle.DangerousGetHandle(), data.DataPointer, CurrentPopupRenderInfo, renderInfo);
+                    Debug.WriteLine("Popup case over redeaw");
+                }
+                ///After closing popup
+                else if (popupMemoryMappedFile != null && PopupVisibility == false)
+                {
+                    CopyMemoryGentle(renderInfo.Buffer, data.DataPointer, renderInfo.NumberOfBytes);
+                    ReleaseMemoryMappedView(ref popupMemoryMappedFile, ref popupMemoryMappedViewAccessor);
+                    Debug.WriteLine("After closing popup " + renderInfo.NumberOfBytes);
+                }
+                else
+                {
+                    CopyMemoryGentle(renderInfo.Buffer, data.DataPointer, renderInfo.DirtyRect, renderInfo);
+                    Debug.WriteLine("Global case posX:" + renderInfo.DirtyRect.X + " posY:" + renderInfo.DirtyRect.Y + " w:" + renderInfo.DirtyRect.Width + " h:" + renderInfo.DirtyRect.Height);
+                }
+            }
+            else
+            {
+                CopyMemoryGentle(popupMemoryMappedViewAccessor.SafeMemoryMappedViewHandle.DangerousGetHandle(), data.DataPointer, CurrentPopupRenderInfo, CurrentRenderInfo);
+                Debug.WriteLine("Popup case");
+            }
+
+            texA.UnlockRectangle(0);
+
+
+            device9.Value.Device.UpdateTexture(texA, tex);
+
+            CurrentRenderInfo.Image.Dispatcher.BeginInvoke((Action)(() =>
+            {
+                InvalidateImageSource(forceChangeSource);
+            }),
+        DispatcherPriority.Render);
+        }
+
+        private void InvalidateImageSource(bool forceChangeSource)
         {
             Debug.WriteLine("InvalidateImageSource calling ...");
-            if (!(CurrentRenderInfo.Image.Source is DXImageSource))
+            if (!(CurrentRenderInfo.Image.Source is DXImageSource) || forceChangeSource)
             {
                 lock (lockObject)
                 {
