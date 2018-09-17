@@ -1109,7 +1109,7 @@ namespace CefSharp.Wpf
                     // If Address was previously set, only now can we actually do the load
                     if (!string.IsNullOrEmpty(Address))
                     {
-                        Load("http://internal-www.intuilab.com/TestAuto/mockupWebsite/index.html");
+                        Load(Address);
                     }
                 }
             });
