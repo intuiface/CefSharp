@@ -17,6 +17,7 @@ using System.Windows.Threading;
 
 using Rect = CefSharp.Structs.Rect;
 using System.Windows.Interop;
+using System.IO;
 
 namespace CefSharp.Wpf.Rendering
 {
@@ -65,7 +66,7 @@ namespace CefSharp.Wpf.Rendering
         /// <summary>
         /// DirectX device. One to rule them all.
         /// </summary>
-        private static Lazy<D3D9> device9 = new Lazy<D3D9>();
+        private static D3D9 device9 = new D3D9();
 
         //Framerate rendering stuff
         public int Framerate_LastSecond = 0;
@@ -85,11 +86,17 @@ namespace CefSharp.Wpf.Rendering
 
         void ReInitTextures(bool redraw = true)
         {
+            //File.AppendAllText("DEBUG.txt", DateTime.Now.ToLongTimeString() + this.GetHashCode() + " ReInitTextures" + Environment.NewLine);
             lock (lockObject)
             {
                 var oldTex = tex;
                 var oldTexA = texA;
                 InitTextures(redraw);
+                CurrentRenderInfo.Image.Dispatcher.BeginInvoke((Action)(() =>
+                {
+                    InvalidateImageSource(true);
+                }),
+        DispatcherPriority.Render);
             }
         }
 
@@ -98,9 +105,9 @@ namespace CefSharp.Wpf.Rendering
             if (CurrentRenderInfo == null)
                 return;
 
-            //File.AppendAllText("Log.txt", DateTime.Now.ToShortTimeString() + "-Before init texture");
+            //File.AppendAllText("DEBUG.txt", DateTime.Now.ToLongTimeString() + this.GetHashCode() + " InitTextures" + Environment.NewLine);
             texA = new SharpDX.Direct3D9.Texture(
-                      device9.Value.Device,
+                      device9.Device,
                       CurrentRenderInfo.Width,
                       CurrentRenderInfo.Height,
                               0,
@@ -109,17 +116,15 @@ namespace CefSharp.Wpf.Rendering
                               Pool.SystemMemory);
             var data = texA.LockRectangle(0, LockFlags.None);
 
-            InteropBitmap source = null;
+            //File.AppendAllText("DEBUG.txt", DateTime.Now.ToLongTimeString() + this.GetHashCode() + " " + CurrentRenderInfo.Width + "x" + CurrentRenderInfo.Height + Environment.NewLine);
+
             if (CurrentRenderInfo.Buffer != IntPtr.Zero && redraw)
                 CopyMemory(data.DataPointer, CurrentRenderInfo.Buffer, (uint)CurrentRenderInfo.NumberOfBytes);
 
             texA.UnlockRectangle(0);
 
-
-
-
             tex = new SharpDX.Direct3D9.Texture(
-               device9.Value.Device,
+               device9.Device,
                CurrentRenderInfo.Width,
                CurrentRenderInfo.Height,
                        0,
@@ -137,6 +142,8 @@ namespace CefSharp.Wpf.Rendering
 
         private void DirectXRender(RenderInfo renderInfo)
         {
+            //File.AppendAllText("DEBUG.txt", DateTime.Now.ToLongTimeString() + this.GetHashCode() + " DirectXRender" + Environment.NewLine);
+
             Debug.WriteLine("Render called");
             if (renderInfo == null)
                 return;
@@ -160,6 +167,9 @@ namespace CefSharp.Wpf.Rendering
 
         private void RenderData(RenderInfo renderInfo, bool forceChangeSource)
         {
+
+            //File.AppendAllText("DEBUG.txt", DateTime.Now.ToLongTimeString() + this.GetHashCode() + " RenderData" + Environment.NewLine);
+
             var sec = DateTime.Now.Second;
             if (Framerate_LastSecond != sec)
             {
@@ -176,6 +186,7 @@ namespace CefSharp.Wpf.Rendering
 
             if (!renderInfo.IsPopup)
             {
+                //File.AppendAllText("DEBUG.txt", DateTime.Now.ToLongTimeString() + this.GetHashCode() + " !popup" + Environment.NewLine);
                 //Case of popup
                 if (popupMemoryMappedFile != null && PopupVisibility == true)
                 {
@@ -192,12 +203,14 @@ namespace CefSharp.Wpf.Rendering
                 }
                 else
                 {
+                    //File.AppendAllText("DEBUG.txt", DateTime.Now.ToLongTimeString() + this.GetHashCode() + "Global case posX:" + renderInfo.DirtyRect.X + " posY:" + renderInfo.DirtyRect.Y + " w:" + renderInfo.DirtyRect.Width + " h:" + renderInfo.DirtyRect.Height + Environment.NewLine);
                     CopyMemoryGentle(renderInfo.Buffer, data.DataPointer, renderInfo.DirtyRect, renderInfo);
                     Debug.WriteLine("Global case posX:" + renderInfo.DirtyRect.X + " posY:" + renderInfo.DirtyRect.Y + " w:" + renderInfo.DirtyRect.Width + " h:" + renderInfo.DirtyRect.Height);
                 }
             }
             else
             {
+                //File.AppendAllText("DEBUG.txt", DateTime.Now.ToLongTimeString() + this.GetHashCode() + " popup" + Environment.NewLine);
                 CopyMemoryGentle(popupMemoryMappedViewAccessor.SafeMemoryMappedViewHandle.DangerousGetHandle(), data.DataPointer, CurrentPopupRenderInfo, CurrentRenderInfo);
                 Debug.WriteLine("Popup case");
             }
@@ -205,10 +218,12 @@ namespace CefSharp.Wpf.Rendering
             texA.UnlockRectangle(0);
 
 
-            device9.Value.Device.UpdateTexture(texA, tex);
+            device9.Device.UpdateTexture(texA, tex);
 
             CurrentRenderInfo.Image.Dispatcher.BeginInvoke((Action)(() =>
             {
+                //File.AppendAllText("DEBUG.txt", DateTime.Now.ToLongTimeString() + this.GetHashCode() + " InvalidateImageSource" + Environment.NewLine);
+
                 InvalidateImageSource(forceChangeSource);
             }),
         DispatcherPriority.Render);
@@ -216,11 +231,14 @@ namespace CefSharp.Wpf.Rendering
 
         private void InvalidateImageSource(bool forceChangeSource)
         {
+            //File.AppendAllText("DEBUG.txt", DateTime.Now.ToLongTimeString() + this.GetHashCode() + " InvalidateImageSource INSIDE" + Environment.NewLine);
+
             Debug.WriteLine("InvalidateImageSource calling ...");
             if (!(CurrentRenderInfo.Image.Source is DXImageSource) || forceChangeSource)
             {
                 lock (lockObject)
                 {
+                    //File.AppendAllText("DEBUG.txt", DateTime.Now.ToLongTimeString() + this.GetHashCode() + " InvalidateImageSource DXImageSource " + CurrentRenderInfo.Image.GetHashCode() + Environment.NewLine);
                     src = new DXImageSource();
                     src.OnContextRetreived += Src_OnContextRetreived;
                     src.SetBackBuffer(tex);
@@ -252,7 +270,7 @@ namespace CefSharp.Wpf.Rendering
 
         private void Src_OnContextRetreived(object sender, EventArgs e)
         {
-
+            //File.AppendAllText("DEBUG.txt", DateTime.Now.ToLongTimeString() + this.GetHashCode() + " Src_OnContextRetreived" + Environment.NewLine);
             ReInitTextures(false);
         }
 
@@ -326,6 +344,7 @@ namespace CefSharp.Wpf.Rendering
 
         void IRenderHandler.OnPaint(bool isPopup, Rect dirtyRect, IntPtr buffer, int width, int height, Image image)
         {
+            //File.AppendAllText("DEBUG.txt", DateTime.Now.ToLongTimeString() + this.GetHashCode() + " ONPAINT " + isPopup + " " + buffer + " - " + width + "x" + height + " " + image.GetHashCode() + Environment.NewLine);
             if (image.Dispatcher.HasShutdownStarted)
             {
                 return;
