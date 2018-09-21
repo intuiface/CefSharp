@@ -1,4 +1,4 @@
-﻿// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
+// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -1778,6 +1778,11 @@ namespace CefSharp.Wpf
             browserScreenLocation = GetBrowserScreenLocation();
         }
 
+        public virtual void BeforeCreateOffscreenBrowser(IntPtr source, BrowserSettings settings, RequestContext context, string adress)
+        {
+
+        }
+
         /// <summary>
         /// Create the underlying Browser instance, can be overriden to defer control creation
         /// The browser will only be created when size &gt; Size(0,0). If you specify a positive
@@ -1797,6 +1802,7 @@ namespace CefSharp.Wpf
             var webBrowserInternal = this as IWebBrowserInternal;
             if (!webBrowserInternal.HasParent)
             {
+                BeforeCreateOffscreenBrowser(source == null ? IntPtr.Zero : source.Handle, BrowserSettings, (RequestContext)RequestContext, Address);
                 managedCefBrowserAdapter.CreateOffscreenBrowser(source == null ? IntPtr.Zero : source.Handle, BrowserSettings, (RequestContext)RequestContext, Address);
             }
             browserCreated = true;

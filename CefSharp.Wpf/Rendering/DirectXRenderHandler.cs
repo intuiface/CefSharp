@@ -84,16 +84,21 @@ namespace CefSharp.Wpf.Rendering
         private MemoryMappedFile popupMemoryMappedFile;
         private MemoryMappedViewAccessor popupMemoryMappedViewAccessor;
 
-        void ReInitTextures(bool redraw = true)
+        void ReInitTextures(bool recreateTextures, bool redraw = true)
         {
             //File.AppendAllText("DEBUG.txt", DateTime.Now.ToLongTimeString() + this.GetHashCode() + " ReInitTextures" + Environment.NewLine);
             lock (lockObject)
             {
-                var oldTex = tex;
-                var oldTexA = texA;
-                InitTextures(redraw);
+                //Display white screen after lock. Do not recreate textures.
+                if (recreateTextures)
+                {
+                    var oldTex = tex;
+                    var oldTexA = texA;
+                    InitTextures(redraw);
+                }
                 CurrentRenderInfo.Image.Dispatcher.BeginInvoke((Action)(() =>
                 {
+                    //Force creating source, once again, sometimes, Dx losing context just after run & break the source (king of a render pipe)...
                     InvalidateImageSource(true);
                 }),
         DispatcherPriority.Render);
@@ -119,6 +124,8 @@ namespace CefSharp.Wpf.Rendering
             //File.AppendAllText("DEBUG.txt", DateTime.Now.ToLongTimeString() + this.GetHashCode() + " " + CurrentRenderInfo.Width + "x" + CurrentRenderInfo.Height + Environment.NewLine);
 
             if (CurrentRenderInfo.Buffer != IntPtr.Zero && redraw)
+                CopyMemory(data.DataPointer, CurrentRenderInfo.Buffer, (uint)CurrentRenderInfo.NumberOfBytes);
+            else
                 CopyMemory(data.DataPointer, CurrentRenderInfo.Buffer, (uint)CurrentRenderInfo.NumberOfBytes);
 
             texA.UnlockRectangle(0);
@@ -271,7 +278,7 @@ namespace CefSharp.Wpf.Rendering
         private void Src_OnContextRetreived(object sender, EventArgs e)
         {
             //File.AppendAllText("DEBUG.txt", DateTime.Now.ToLongTimeString() + this.GetHashCode() + " Src_OnContextRetreived" + Environment.NewLine);
-            ReInitTextures(false);
+            ReInitTextures(false, false);
         }
 
         private void CopyMemoryGentle(IntPtr source, IntPtr destination, long startIndexSource, long startIndexDestination, int length)
