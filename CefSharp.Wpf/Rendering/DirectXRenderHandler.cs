@@ -352,7 +352,8 @@ namespace CefSharp.Wpf.Rendering
         void IRenderHandler.OnPaint(bool isPopup, Rect dirtyRect, IntPtr buffer, int width, int height, Image image)
         {
             //File.AppendAllText("DEBUG.txt", DateTime.Now.ToLongTimeString() + this.GetHashCode() + " ONPAINT " + isPopup + " " + buffer + " - " + width + "x" + height + " " + image.GetHashCode() + Environment.NewLine);
-            if (image.Dispatcher.HasShutdownStarted)
+            if (image.Dispatcher.HasShutdownStarted ||
+                (dirtyRect.X == 0 && dirtyRect.Y == 0 && dirtyRect.Width == 0 && dirtyRect.Height == 0))
             {
                 return;
             }
