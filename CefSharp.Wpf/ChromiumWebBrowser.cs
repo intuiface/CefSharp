@@ -172,7 +172,7 @@ namespace CefSharp.Wpf
         private Image image;
         /// The browser
         /// </summary>
-        private IBrowser browser;
+        public IBrowser browser;
         /// <summary>
         /// The dispose count
         /// </summary>
@@ -2209,7 +2209,7 @@ namespace CefSharp.Wpf
                 e.Handled = true;
             }
 
-            base.OnMouseWheel(e);
+            //base.OnMouseWheel(e);
         }
 
         /// <summary>
