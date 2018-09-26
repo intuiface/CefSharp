@@ -1677,7 +1677,7 @@ namespace CefSharp.Wpf
                     var notifyDpiChanged = DpiScaleFactor > 0 && !DpiScaleFactor.Equals(matrix.M11);
 
                     DpiScaleFactor = source.CompositionTarget.TransformToDevice.M11;
-
+                    DpiScaleFactor = 1;
                     WpfKeyboardHandler.Setup(source);
 
                     if (notifyDpiChanged && browser != null)
