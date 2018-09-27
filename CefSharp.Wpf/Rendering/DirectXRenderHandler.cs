@@ -54,6 +54,16 @@ namespace CefSharp.Wpf.Rendering
         private SharpDX.Direct3D9.Texture tex;
 
         /// <summary>
+        /// Texture whee data is injected (dynamic)
+        /// </summary>
+        private SharpDX.Direct3D9.Texture oldTexA;
+
+        /// <summary>
+        /// Texture RenderTarget compliant
+        /// </summary>
+        private SharpDX.Direct3D9.Texture oldTex;
+
+        /// <summary>
         /// Texture Height when created
         /// </summary>
         private int texHeight;
@@ -111,6 +121,7 @@ namespace CefSharp.Wpf.Rendering
                 return;
 
             //File.AppendAllText("DEBUG.txt", DateTime.Now.ToLongTimeString() + this.GetHashCode() + " InitTextures" + Environment.NewLine);
+            oldTexA = texA;
             texA = new SharpDX.Direct3D9.Texture(
                       device9.Device,
                       CurrentRenderInfo.Width,
@@ -130,6 +141,7 @@ namespace CefSharp.Wpf.Rendering
 
             texA.UnlockRectangle(0);
 
+            oldTex = tex;
             tex = new SharpDX.Direct3D9.Texture(
                device9.Device,
                CurrentRenderInfo.Width,
@@ -250,6 +262,15 @@ namespace CefSharp.Wpf.Rendering
                     src.OnContextRetreived += Src_OnContextRetreived;
                     src.SetBackBuffer(tex);
                     CurrentRenderInfo.Image.Source = src;
+
+                    if (oldTexA != null)
+                    {
+                        oldTexA.Dispose();
+                    }
+                    if (oldTex != null)
+                    {
+                        oldTex.Dispose();
+                    }
 
                     Debug.WriteLine("InvalidateImageSource called ...");
                 }
