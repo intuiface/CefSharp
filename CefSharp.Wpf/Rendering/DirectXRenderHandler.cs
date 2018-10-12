@@ -332,7 +332,7 @@ namespace CefSharp.Wpf.Rendering
             {
                 CopyMemory(
                     new IntPtr(destination.ToInt64() + (PopupPositionY + i) * info.Width * info.BytesPerPixel + PopupPositionX * popup.BytesPerPixel),
-                    new IntPtr(popup.Buffer.ToInt64() + i * popup.Width * popup.BytesPerPixel),
+                    new IntPtr(source.ToInt64() + i * popup.Width * popup.BytesPerPixel),
                     (uint)(popup.Width * popup.BytesPerPixel));
             }
         }
