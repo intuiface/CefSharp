@@ -2257,14 +2257,14 @@ namespace CefSharp.Wpf
                 CleanupElement = Window.GetWindow(this);
             }
 
-            // TODO: Consider making the delay here configurable.
-            tooltipTimer = new DispatcherTimer(
-                TimeSpan.FromSeconds(0.5),
-                DispatcherPriority.Render,
-                OnTooltipTimerTick,
-                Dispatcher
-                );
-            tooltipTimer.IsEnabled = false;
+            //// TODO: Consider making the delay here configurable.
+            //tooltipTimer = new DispatcherTimer(
+            //    TimeSpan.FromSeconds(0.5),
+            //    DispatcherPriority.Render,
+            //    OnTooltipTimerTick,
+            //    Dispatcher
+            //    );
+            //tooltipTimer.IsEnabled = false;
 
             //Initial value for screen location
             browserScreenLocation = GetBrowserScreenLocation();
