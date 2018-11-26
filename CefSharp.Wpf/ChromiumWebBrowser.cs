@@ -1761,14 +1761,19 @@ namespace CefSharp.Wpf
         /// <returns>Returns screen coordinates of the browsers location</returns>
         protected virtual Point GetBrowserScreenLocation()
         {
-            if (source != null && PresentationSource.FromVisual(this) != null)
+            try
             {
-                return PointToScreen(new Point());
+                if (source != null && PresentationSource.FromVisual(this) != null)
+                {
+                    return PointToScreen(new Point());
+                }
             }
-            else
+            catch (Exception)
             {
-                return new Point();
+
             }
+
+            return new Point();
         }
 
         private void OnWindowLocationChanged(object sender, EventArgs e)
