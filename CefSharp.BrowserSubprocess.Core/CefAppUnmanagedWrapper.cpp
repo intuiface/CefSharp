@@ -23,16 +23,16 @@ using namespace CefSharp::Internals::Serialization;
 
 namespace CefSharp
 {
-    const CefString CefAppUnmanagedWrapper::kPromiseCreatorFunction = "cefsharp_CreatePromise";
     const CefString CefAppUnmanagedWrapper::kPromiseCreatorScript = ""
-        "function cefsharp_CreatePromise() {"
+        "(function()"
+        "{"
         "   var result = {};"
         "   var promise = new Promise(function(resolve, reject) {"
         "       result.res = resolve; result.rej = reject;"
         "   });"
         "   result.p = promise;"
         "   return result;"
-        "}";
+        "})();";
 
     CefRefPtr<CefRenderProcessHandler> CefAppUnmanagedWrapper::GetRenderProcessHandler()
     {
@@ -112,6 +112,18 @@ namespace CefSharp
         cefSharpObjCamelCase->SetValue(kDeleteBoundObjectCamelCase, unBindObjFunction, CefV8Value::PropertyAttribute::V8_PROPERTY_ATTRIBUTE_NONE);
         cefSharpObjCamelCase->SetValue(kRemoveObjectFromCacheCamelCase, removeObjectFromCacheFunction, CefV8Value::PropertyAttribute::V8_PROPERTY_ATTRIBUTE_NONE);
         cefSharpObjCamelCase->SetValue(kIsObjectCachedCamelCase, isObjectCachedFunction, CefV8Value::PropertyAttribute::V8_PROPERTY_ATTRIBUTE_NONE);
+
+        //Send a message to the browser processing signaling that OnContextCreated has been called
+        //only param is the FrameId. Currently an IPC message is only sent for the main frame - will see
+        //how viable this solution is and if it's worth expanding to sub/child frames.
+        if (frame->IsMain())
+        {
+            auto contextCreatedMessage = CefProcessMessage::Create(kOnContextCreatedRequest);
+
+            SetInt64(contextCreatedMessage->GetArgumentList(), 0, frame->GetIdentifier());
+
+            browser->SendProcessMessage(CefProcessId::PID_BROWSER, contextCreatedMessage);
+        }
     };
 
     void CefAppUnmanagedWrapper::OnContextReleased(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, CefRefPtr<CefV8Context> context)
@@ -670,9 +682,6 @@ namespace CefSharp
 
     void CefAppUnmanagedWrapper::OnWebKitInitialized()
     {
-        //we need to do this because the builtin Promise object is not accesible
-        CefRegisterExtension("cefsharp/promisecreator", kPromiseCreatorScript, NULL);
-
         for each(CefExtension^ extension in _extensions->AsReadOnly())
         {
             //only support extensions without handlers now
