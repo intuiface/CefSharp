@@ -66,6 +66,15 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="SharpDX, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1, processorArchitecture=MSIL">
+      <HintPath>..\packages\SharpDX.4.2.0\lib\net45\SharpDX.dll</HintPath>
+    </Reference>
+    <Reference Include="SharpDX.Direct3D9, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1, processorArchitecture=MSIL">
+      <HintPath>..\packages\SharpDX.Direct3D9.4.2.0\lib\net45\SharpDX.Direct3D9.dll</HintPath>
+    </Reference>
+    <Reference Include="SharpDX.Mathematics, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1, processorArchitecture=MSIL">
+      <HintPath>..\packages\SharpDX.Mathematics.4.2.0\lib\net45\SharpDX.Mathematics.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Core" />
@@ -102,11 +111,19 @@
     <Compile Include="ChromiumWebBrowser.cs" />
     <Compile Include="PaintEventArgs.cs" />
     <Compile Include="Rendering\AbstractRenderHandler.cs" />
+    <Compile Include="Rendering\DirectXRenderHandler.cs" />
+    <Compile Include="Rendering\DirectX\Cameras.cs" />
+    <Compile Include="Rendering\DirectX\D3D.cs" />
+    <Compile Include="Rendering\DirectX\D3D9.cs" />
+    <Compile Include="Rendering\DirectX\DXImageSource.cs" />
+    <Compile Include="Rendering\DirectX\DXUtils.cs" />
+    <Compile Include="Rendering\DirectX\IDirect3D.cs" />
     <Compile Include="Rendering\Experimental\CompositionTargetRenderHandler.cs" />
     <Compile Include="Rendering\DirectWritableBitmapRenderHandler.cs" />
     <Compile Include="Rendering\Experimental\IncreaseBufferInteropRenderHandler.cs" />
     <Compile Include="Rendering\Experimental\ByteArrayWritableBitmapRenderHandler.cs" />
     <Compile Include="Rendering\InteropBitmapRenderHandler.cs" />
+    <Compile Include="Rendering\RenderInfo.cs" />
     <Compile Include="Rendering\WritableBitmapRenderHandler.cs" />
     <Compile Include="VirtualKeyboardRequestedEventArgs.cs" />
     <Compile Include="WM.cs" />
@@ -126,6 +143,9 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
