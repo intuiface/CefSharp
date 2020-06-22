@@ -103,7 +103,7 @@ namespace CefSharp.Wpf.Rendering.Experimental
                     element.Image.Source = bitmap = new WriteableBitmap(element.Width, element.Height, element.DpiX, element.DpiY, AbstractRenderHandler.PixelFormat, null);
                 }
 
-                if (bitmap != null)
+                if (element.Buffer != IntPtr.Zero)
                 {
                     // Update the dirty region
                     var dirtyRect = element.DirtyRect;
