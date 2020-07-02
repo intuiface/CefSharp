@@ -39,7 +39,7 @@ namespace CefSharp.Web
             if (base64Encode)
             {
                 var base64EncodedHtml = Convert.ToBase64String(Encoding.UTF8.GetBytes(html));
-                return "data:text/html;base64," + base64EncodedHtml;
+                return "data:text/html;charset=UTF-8;base64," + base64EncodedHtml;
             }
 
             var uriEncodedHtml = Uri.EscapeDataString(html);
